@@ -221,7 +221,7 @@ CSVファイル並列処理システム - AWS Lambda + Step Functions
 
 ## ディレクトリ構造
 - `terraform/`: インフラ定義（Terraform）
-- `sam-lambda/`: Lambda関数（TypeScript）
+- `sam/`: Lambda関数（TypeScript）
 - `docs/`: プロジェクトドキュメント
   - `01_Document/`: 設計書・要件定義
   - `02_Tasks/`: タスク管理
@@ -264,10 +264,19 @@ CSVファイル並列処理システム - AWS Lambda + Step Functions
 
 ## 6. 初期プロジェクト構成
 
-### 6.1 ディレクトリ構成設計 ⏳未実施
+### 6.1 ディレクトリ構成設計（devcontainer対応版） ✅実施済み
 
 ```
 csv-parallel-processing-system/
+├── .devcontainer/           # VS Code Dev Container設定
+│   ├── devcontainer.json    # Dev Container設定
+│   ├── docker-compose.yml   # 開発環境サービス構成
+│   ├── Dockerfile           # 開発コンテナイメージ
+│   └── setup-scripts/       # セットアップスクリプト
+│       ├── install-aws-cli.sh
+│       ├── install-sam-cli.sh
+│       ├── setup-minio.sh
+│       └── setup-postgres.sh
 ├── .github/workflows/        # CI/CD定義
 │   ├── pr-check.yml         # プルリクエストチェック
 │   ├── dev-deploy.yml       # 開発環境デプロイ
@@ -275,16 +284,13 @@ csv-parallel-processing-system/
 ├── terraform/                # インフラ定義
 │   ├── environments/
 │   │   ├── dev/
-│   │   │   ├── main.tf
-│   │   │   ├── variables.tf
-│   │   │   └── outputs.tf
 │   │   └── prod/
 │   └── modules/
 │       ├── network/
 │       ├── aurora/
 │       ├── s3/
 │       └── iam/
-├── sam-lambda/               # Lambda関数
+├── sam/                       # Lambda関数（TypeScript）
 │   ├── src/
 │   │   ├── controllers/     # プレゼンテーション層
 │   │   ├── application/     # アプリケーション層
@@ -295,11 +301,17 @@ csv-parallel-processing-system/
 │   ├── template.yaml        # SAMテンプレート
 │   ├── samconfig.toml       # SAM設定
 │   └── package.json         # Node.js依存関係
-├── local-env/                # ローカル開発環境
-│   ├── local-s3/            # S3代替
-│   ├── postgresql/          # Aurora代替
-│   ├── dynamodb-local/      # DynamoDB代替
-│   └── scripts/             # 環境管理スクリプト
+├── local-env/                # ローカル開発環境（devcontainer用）
+│   ├── minio/               # MinIO（S3代替）
+│   │   ├── data/           # データ永続化
+│   │   └── config/         # 設定ファイル
+│   ├── postgres/            # PostgreSQL（Aurora代替）
+│   │   ├── data/           # データ永続化
+│   │   ├── initdb/         # 初期化SQLスクリプト
+│   │   └── config/         # 設定ファイル
+│   ├── pgadmin/            # pgAdmin 4設定永続化
+│   └── dynamodb/           # DynamoDB Local
+│       └── data/           # データ永続化
 ├── docs/                     # プロジェクトドキュメント
 │   ├── 01_Document/         # 設計書・要件定義
 │   │   ├── 01-01_要件定義書_CSVファイル並列処理システム.md
@@ -326,8 +338,27 @@ csv-parallel-processing-system/
 │   └── test.sh              # テスト実行スクリプト
 ├── .gitignore               # Git除外設定
 ├── README.md                # プロジェクト概要
+├── CLAUDE.md                # Claude Code用設定
 └── package.json             # プロジェクト依存関係
 ```
+
+#### 技術スタック（TypeScript/Node.js中心）
+- **Lambda関数**: TypeScript実装
+- **AWS SDK**: `@aws-sdk/client-*` (JavaScript/TypeScript)  
+- **テストフレームワーク**: Jest + TypeScript
+- **コード品質**: ESLint + Prettier + TypeScript compiler
+- **インフラ管理**: Terraform + AWS CLI
+- **ローカル開発**: VS Code Dev Containers
+
+#### 開発環境サービス（devcontainer）
+- **MinIO**: S3代替（ポート5000/6001）
+- **PostgreSQL**: Aurora代替（ポート5432）
+- **pgAdmin 4**: PostgreSQL管理画面（ポート8080）
+- **DynamoDB Local**: DynamoDB代替（ポート4500）
+- **SAM Local**: Lambda開発・テスト（ポート4000/4001）
+- **EventBridge**: 開発環境では省略（直接呼び出し）
+
+**⚠️ 重要**: Python環境は使用しません。全てTypeScript/Node.js環境で統一します。
 
 ### 6.2 初期ファイル作成手順
 
@@ -342,7 +373,7 @@ git checkout -b develop
 mkdir -p .github/workflows
 mkdir -p terraform/environments/{dev,prod}
 mkdir -p terraform/modules/{network,aurora,s3,iam}
-mkdir -p sam-lambda/{src/{controllers,application,domain,infrastructure},layers,tests}
+mkdir -p sam/{src/{controllers,application,domain,infrastructure},layers,tests}
 mkdir -p local-env/{local-s3,postgresql,dynamodb-local,scripts}
 mkdir -p docs/{01_Document,02_Tasks,03_Research,10_Manual,99_old}
 mkdir -p scripts
@@ -471,21 +502,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           
       - name: Install dependencies
         run: |
-          cd sam-lambda
+          cd sam
           npm install
           
       - name: Run tests
         run: |
-          cd sam-lambda
+          cd sam
           npm run test
           
       - name: SAM Build
         run: |
-          cd sam-lambda
+          cd sam
           sam build
 ```
 
@@ -543,11 +574,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           
       - name: SAM Deploy
         run: |
-          cd sam-lambda
+          cd sam
           sam build
           sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
 ```
