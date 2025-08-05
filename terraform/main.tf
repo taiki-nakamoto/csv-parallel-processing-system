@@ -7,16 +7,15 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "5.31.0"
     }
   }
   
   backend "s3" {
-    bucket         = "naka-enginner-tfstate"
-    key            = "05_csv-batch/dev/terraform.tfstate"
-    region         = "ap-northeast-1"
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
+    bucket  = "naka-enginner-tfstate"
+    key     = "05_csv-batch/dev/terraform.tfstate"
+    region  = "ap-northeast-1"
+    encrypt = true
   }
 }
 
@@ -26,10 +25,9 @@ provider "aws" {
   
   default_tags {
     tags = {
-      Project     = var.project_name
+      Project     = "csv-batch"
       Environment = var.environment
-      ManagedBy   = "Terraform"
-      Repository  = "csv-parallel-processing-system"
+      ManagedBy   = "terraform"
     }
   }
 }

@@ -38,6 +38,12 @@ variable "private_subnet_cidr" {
   default     = "10.0.1.32/27"
 }
 
+variable "private_subnet_2_cidr" {
+  description = "Private subnet 2 CIDR block for Aurora (multi-AZ)"
+  type        = string
+  default     = "10.0.1.64/27"
+}
+
 # Lambda設定
 variable "lambda_runtime" {
   description = "Lambda runtime"

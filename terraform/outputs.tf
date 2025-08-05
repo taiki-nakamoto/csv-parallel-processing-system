@@ -87,15 +87,15 @@ output "log_group_lambda" {
   value       = module.cloudwatch.lambda_log_group_name
 }
 
-# Step Functions
-output "step_functions_state_machine_arn" {
-  description = "Step Functions state machine ARN"
-  value       = module.stepfunctions.state_machine_arn
-  sensitive   = false
-}
+# Step Functions（後で実装）
+# output "step_functions_state_machine_arn" {
+#   description = "Step Functions state machine ARN"
+#   value       = module.stepfunctions.state_machine_arn
+#   sensitive   = false
+# }
 
-# Lambda関数
-output "lambda_function_arn" {
-  description = "CSV processor Lambda function ARN"
-  value       = module.lambda.function_arn
-}
+# Lambda関数（後で実装）
+# output "lambda_function_arn" {
+#   description = "CSV processor Lambda function ARN"
+#   value       = module.lambda.function_arn
+# }
