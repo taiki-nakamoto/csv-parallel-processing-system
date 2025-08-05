@@ -1,0 +1,39 @@
+{
+  "name": "csv-parallel-processing-system",
+  "version": "1.0.0",
+  "description": "CSVファイル並列処理システム - AWS Lambda + Step Functions",
+  "main": "index.js",
+  "scripts": {
+    "build": "sam build",
+    "start-api": "sam local start-api --port 4000 --docker-network aws-local-dev",
+    "start-lambda": "sam local start-lambda --port 4001 --docker-network aws-local-dev",
+    "test": "jest",
+    "lint": "eslint sam/src/**/*.ts",
+    "format": "prettier --write sam/src/**/*.ts",
+    "dev-setup": "docker-compose -f .devcontainer/docker-compose.yml up -d",
+    "dev-down": "docker-compose -f .devcontainer/docker-compose.yml down"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "step-functions",
+    "csv",
+    "parallel-processing",
+    "serverless"
+  ],
+  "author": "システム開発チーム",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1400.0"
+  }
+}

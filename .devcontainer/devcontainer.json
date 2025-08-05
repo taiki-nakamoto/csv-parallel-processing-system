@@ -1,0 +1,74 @@
+{
+  "name": "CSV Parallel Processing System",
+  "dockerComposeFile": [
+    "docker-compose.yml"
+  ],
+  "service": "dev-container",
+  "workspaceFolder": "/csvworkspace",
+  "shutdownAction": "stopCompose",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "ms-python.python",
+        "ms-python.flake8",
+        "ms-python.black-formatter",
+        "amazonwebservices.aws-toolkit-vscode",
+        "hashicorp.terraform",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+        "bierner.markdown-mermaid"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.formatting.provider": "black"
+      }
+    }
+  },
+  
+  "forwardPorts": [
+    4000,  // SAM Local API
+    4001,  // SAM Local Lambda
+    4500,  // DynamoDB Local
+    5000,  // MinIO API
+    6001,  // MinIO Console
+    5432,  // PostgreSQL
+    8080   // pgAdmin 4
+  ],
+  
+  "portsAttributes": {
+    "6001": {
+      "label": "MinIO Console",
+      "onAutoForward": "openPreview"
+    },
+    "4000": {
+      "label": "SAM Local API Gateway"
+    },
+    "8080": {
+      "label": "pgAdmin 4",
+      "onAutoForward": "openPreview"
+    }
+  },
+  
+  "postCreateCommand": ".devcontainer/setup-scripts/install-aws-cli.sh && .devcontainer/setup-scripts/install-sam-cli.sh",
+  "postStartCommand": ".devcontainer/setup-scripts/setup-minio.sh && .devcontainer/setup-scripts/setup-postgres.sh",
+  
+  "remoteUser": "vscode"
+}
