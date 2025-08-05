@@ -31,22 +31,18 @@ RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
     && chmod +x mc \
     && mv mc /usr/local/bin/
 
-# Node.js/TypeScript開発環境
+# Node.js/TypeScript開発環境（最小限のグローバルツールのみ）
 RUN npm install -g \
     typescript \
-    @types/node \
     ts-node \
-    jest \
-    @types/jest \
-    eslint \
-    prettier \
-    @aws-sdk/client-s3 \
-    @aws-sdk/client-dynamodb \
-    @aws-sdk/client-lambda \
-    @aws-sdk/client-step-functions
+    prettier
 
 # 作業ディレクトリ設定
 WORKDIR /csvworkspace
+
+# package.jsonベースでの依存関係管理
+COPY package*.json ./
+RUN npm ci
 
 # デフォルトユーザー設定
 USER vscode
