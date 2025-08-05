@@ -71,5 +71,5 @@
   "postCreateCommand": ".devcontainer/setup-scripts/install-aws-cli.sh && .devcontainer/setup-scripts/install-sam-cli.sh",
   "postStartCommand": ".devcontainer/setup-scripts/setup-minio.sh && .devcontainer/setup-scripts/setup-postgres.sh",
   
-  "remoteUser": "vscode"
+  // "remoteUser": "vscode"
 }
