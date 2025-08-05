@@ -1,4 +1,4 @@
-# DynamoDBâ¸åüë	pš©
+# DynamoDBãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - å¤‰æ•°å®šç¾©
 
 variable "project_name" {
   description = "Project name"

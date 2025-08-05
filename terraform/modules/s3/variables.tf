@@ -1,4 +1,4 @@
-# S3â¸åüë	pš©
+# S3ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - å¤‰æ•°å®šç¾©
 
 variable "project_name" {
   description = "Project name"
@@ -10,21 +10,28 @@ variable "environment" {
   type        = string
 }
 
-variable "bucket_name" {
-  description = "S3 bucket name"
-  type        = string
-}
-
-variable "lifecycle_retention_days" {
-  description = "Days to retain objects before deletion"
+variable "retention_days" {
+  description = "S3 object retention days"
   type        = number
   default     = 30
 }
 
 variable "standard_ia_transition_days" {
-  description = "Days before transitioning to Standard IA"
+  description = "Days to transition objects to Standard-IA"
   type        = number
   default     = 7
+}
+
+variable "lambda_trigger_arn" {
+  description = "Lambda function ARN for S3 event triggers"
+  type        = string
+  default     = ""
+}
+
+variable "lambda_permission_resource" {
+  description = "Lambda permission resource for S3 dependency"
+  type        = string
+  default     = ""
 }
 
 variable "tags" {

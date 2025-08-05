@@ -1,4 +1,5 @@
-# CloudWatch����	p��
+# CloudWatchモジュール - 変数定義
+# 参照: 03-12_設計書_CloudWatch監視設定.md
 
 variable "project_name" {
   description = "Project name"

@@ -1,4 +1,4 @@
-# ������������$��
+# ネットワークモジュール - 出力定義
 
 output "vpc_id" {
   description = "VPC ID"

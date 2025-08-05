@@ -1,4 +1,4 @@
-# ÍÃÈïü¯â¸åüë	pš©
+# ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - å¤‰æ•°å®šç¾©
 
 variable "project_name" {
   description = "Project name"

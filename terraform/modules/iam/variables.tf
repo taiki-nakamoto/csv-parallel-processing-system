@@ -1,4 +1,4 @@
-# IAMâ¸åüë	pš©
+# IAMãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - å¤‰æ•°å®šç¾©
 
 variable "project_name" {
   description = "Project name"
@@ -10,9 +10,10 @@ variable "environment" {
   type        = string
 }
 
-variable "s3_bucket_name" {
-  description = "S3 bucket name for CSV processing"
+variable "aws_region" {
+  description = "AWS region"
   type        = string
+  default     = "ap-northeast-1"
 }
 
 variable "tags" {

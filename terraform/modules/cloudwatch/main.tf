@@ -1,7 +1,7 @@
-# CloudWatchâ¸åüë - í°áÈê¯¹¢éüà
-# Âg: 03-12_s0-ø_ã–ûí°s0-.md
+# CloudWatchãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - ãƒ­ã‚°ãƒ»ãƒ¡ãƒˆãƒªã‚¯ã‚¹å®šç¾©
+# å‚ç…§: 03-12_è¨­è¨ˆæ›¸_CloudWatchç›£è¦–è¨­å®š.md
 
-# Lambda(í°°ëü×
+# Lambdaãƒ­ã‚°è¨­å®š
 resource "aws_cloudwatch_log_group" "lambda_logs" {
   name              = "/aws/lambda/csv-processor-${var.environment}"
   retention_in_days = var.log_retention_days
@@ -9,7 +9,7 @@ resource "aws_cloudwatch_log_group" "lambda_logs" {
   tags = var.tags
 }
 
-# Step Functions(í°°ëü×
+# Step Functionsãƒ­ã‚°è¨­å®š
 resource "aws_cloudwatch_log_group" "stepfunctions_logs" {
   name              = "/aws/stepfunctions/csv-processing-${var.environment}"
   retention_in_days = var.log_retention_days
@@ -17,14 +17,14 @@ resource "aws_cloudwatch_log_group" "stepfunctions_logs" {
   tags = var.tags
 }
 
-# SNSÈÔÃ¯¢éüÈå(	
+# SNSã‚¢ãƒ©ãƒ¼ãƒˆé€šçŸ¥è¨­å®š
 resource "aws_sns_topic" "alerts" {
   name = "csv-batch-alerts-${var.environment}"
   
   tags = var.tags
 }
 
-# SNSÈÔÃ¯İê·ü
+# SNSãƒˆãƒ”ãƒƒã‚¯ãƒãƒªã‚·ãƒ¼
 resource "aws_sns_topic_policy" "alerts_policy" {
   arn = aws_sns_topic.alerts.arn
   
@@ -49,7 +49,7 @@ resource "aws_sns_topic_policy" "alerts_policy" {
   })
 }
 
-# Lambda¢p¨éü‡¢éüà
+# Lambdaç”¨ã‚¨ãƒ©ãƒ¼ã‚¢ãƒ©ãƒ¼ãƒ 
 resource "aws_cloudwatch_metric_alarm" "lambda_error_rate" {
   alarm_name          = "csv-lambda-error-rate-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
@@ -71,7 +71,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_error_rate" {
   tags = var.tags
 }
 
-# Lambda¢pŸLB“¢éüà
+# Lambdaç”¨å®Ÿè¡Œæ™‚é–“ã‚¢ãƒ©ãƒ¼ãƒ 
 resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   alarm_name          = "csv-lambda-duration-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
@@ -80,7 +80,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   namespace           = "AWS/Lambda"
   period              = "300"
   statistic           = "Average"
-  threshold           = "240000" # 4
+  threshold           = "240000" # 4åˆ†
   alarm_description   = "This metric monitors lambda execution duration"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
@@ -93,7 +93,7 @@ resource "aws_cloudwatch_metric_alarm" "lambda_duration" {
   tags = var.tags
 }
 
-# Step FunctionsŸL1W¢éüà
+# Step Functionså®Ÿè¡Œå¤±æ•—ã‚¢ãƒ©ãƒ¼ãƒ 
 resource "aws_cloudwatch_metric_alarm" "stepfunctions_failed" {
   alarm_name          = "csv-stepfunctions-failed-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
@@ -115,7 +115,7 @@ resource "aws_cloudwatch_metric_alarm" "stepfunctions_failed" {
   tags = var.tags
 }
 
-# DynamDB¹íÃÈêó°¢éüà
+# DynamoDBã‚¹ãƒ­ãƒƒãƒˆãƒªãƒ³ã‚°ã‚¢ãƒ©ãƒ¼ãƒ 
 resource "aws_cloudwatch_metric_alarm" "dynamodb_throttling" {
   alarm_name          = "csv-dynamodb-throttling-${var.environment}"
   comparison_operator = "GreaterThanThreshold"
@@ -137,7 +137,7 @@ resource "aws_cloudwatch_metric_alarm" "dynamodb_throttling" {
   tags = var.tags
 }
 
-# «¹¿àÀÃ·åÜüÉ
+# CloudWatchãƒ€ãƒƒã‚·ãƒ¥ãƒœãƒ¼ãƒ‰
 resource "aws_cloudwatch_dashboard" "csv_processing_dashboard" {
   dashboard_name = "CSV-Processing-${var.environment}"
   
@@ -209,7 +209,7 @@ resource "aws_cloudwatch_dashboard" "csv_processing_dashboard" {
   tags = var.tags
 }
 
-# X-Rayµó×êó°ëüë
+# X-Rayã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°è¨­å®š
 resource "aws_xray_sampling_rule" "csv_batch_sampling" {
   rule_name      = "csv-batch-sampling"
   priority       = 9000
@@ -226,6 +226,6 @@ resource "aws_xray_sampling_rule" "csv_batch_sampling" {
   tags = var.tags
 }
 
-# Çü¿½ü¹
+# ãƒ‡ãƒ¼ã‚¿ã‚½ãƒ¼ã‚¹
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}

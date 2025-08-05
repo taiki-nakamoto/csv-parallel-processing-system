@@ -1,25 +1,20 @@
-# DynamoDBâ¸åüë - ÆüÖëš©
-# Âg: ¿¹¯É­åáóÈ DynamoDBËÉ»¯·çó
+# DynamoDBãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - ãƒ†ãƒ¼ãƒ–ãƒ«å®šç¾©
+# å‚ç…§: åŸºæœ¬è¨­è¨ˆæ›¸ DynamoDBãƒ†ãƒ¼ãƒ–ãƒ«è¨­è¨ˆ
 
-# ãûí°ÆüÖë\
-resource "aws_dynamodb_table" "audit_logs" {
-  name           = "csv-audit-logs-${var.environment}"
+# ãƒãƒƒãƒã‚¸ãƒ§ãƒ–ç®¡ç†ãƒ†ãƒ¼ãƒ–ãƒ«
+resource "aws_dynamodb_table" "batch_jobs" {
+  name           = "${var.project_name}-batch-jobs-${var.environment}"
   billing_mode   = var.billing_mode
-  hash_key       = "execution_id"
-  range_key      = "timestamp"
+  hash_key       = "job_id"
+  range_key      = "created_at"
   
   attribute {
-    name = "execution_id"
+    name = "job_id"
     type = "S"
   }
   
   attribute {
-    name = "timestamp"
-    type = "S"
-  }
-  
-  attribute {
-    name = "file_name"
+    name = "created_at"
     type = "S"
   }
   
@@ -28,91 +23,73 @@ resource "aws_dynamodb_table" "audit_logs" {
     type = "S"
   }
   
-  # °íüĞë»«óÀê¤óÇÃ¯¹ - Õ¡¤ëkˆ‹"
+  attribute {
+    name = "file_name"
+    type = "S"
+  }
+  
+  # ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹åˆ¥æ¤œç´¢ç”¨GSI
   global_secondary_index {
-    name            = "FileNameIndex"
-    hash_key        = "file_name"
-    range_key       = "timestamp"
+    name     = "status-created_at-index"
+    hash_key = "status"
+    range_key = "created_at"
     projection_type = "ALL"
   }
   
-  # °íüĞë»«óÀê¤óÇÃ¯¹ - ¹Æü¿¹kˆ‹"
+  # ãƒ•ã‚¡ã‚¤ãƒ«ååˆ¥æ¤œç´¢ç”¨GSI
   global_secondary_index {
-    name            = "StatusIndex"
-    hash_key        = "status"
-    range_key       = "timestamp"
+    name     = "file_name-created_at-index"
+    hash_key = "file_name"
+    range_key = "created_at"
     projection_type = "ALL"
   }
   
-  # TTL-š90åŒêÕJd	
+  # TTLè¨­å®šï¼ˆ90æ—¥å¾Œã«è‡ªå‹•å‰Šé™¤ï¼‰
   ttl {
     attribute_name = "ttl"
     enabled        = true
   }
   
-  # Jdİw,j°ƒn	
-  deletion_protection_enabled = var.environment == "prod" ? true : false
+  # ãƒã‚¤ãƒ³ãƒˆã‚¤ãƒ³ã‚¿ã‚¤ãƒ ãƒªã‚«ãƒãƒªæœ‰åŠ¹åŒ–
+  point_in_time_recovery {
+    enabled = true
+  }
   
-  # —÷-š
+  # æš—å·åŒ–è¨­å®š
   server_side_encryption {
     enabled = true
   }
   
-  # İ¤óÈ¤ó¿¤àê«Ğê
-  point_in_time_recovery {
-    enabled = var.environment == "prod" ? true : false
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-batch-jobs-${var.environment}"
+    Purpose = "Batch job management"
+  })
+}
+
+# ã‚¸ãƒ§ãƒ–ãƒ­ãƒƒã‚¯ç®¡ç†ãƒ†ãƒ¼ãƒ–ãƒ«ï¼ˆåŒæ™‚å®Ÿè¡Œåˆ¶å¾¡ï¼‰
+resource "aws_dynamodb_table" "job_locks" {
+  name           = "${var.project_name}-job-locks-${var.environment}"
+  billing_mode   = var.billing_mode
+  hash_key       = "lock_key"
+  
+  attribute {
+    name = "lock_key"
+    type = "S"
   }
   
-  tags = var.tags
-}
-
-# Auto Scaling-šPay-per-requestn4o`Le„j	ôk™Hfš©	
-resource "aws_appautoscaling_target" "dynamodb_table_read_target" {
-  count              = var.billing_mode == "PROVISIONED" ? 1 : 0
-  max_capacity       = 100
-  min_capacity       = 5
-  resource_id        = "table/${aws_dynamodb_table.audit_logs.name}"
-  scalable_dimension = "dynamodb:table:ReadCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_target" "dynamodb_table_write_target" {
-  count              = var.billing_mode == "PROVISIONED" ? 1 : 0
-  max_capacity       = 100
-  min_capacity       = 5
-  resource_id        = "table/${aws_dynamodb_table.audit_logs.name}"
-  scalable_dimension = "dynamodb:table:WriteCapacityUnits"
-  service_namespace  = "dynamodb"
-}
-
-resource "aws_appautoscaling_policy" "dynamodb_table_read_policy" {
-  count              = var.billing_mode == "PROVISIONED" ? 1 : 0
-  name               = "DynamoDBReadCapacityUtilization:${aws_appautoscaling_target.dynamodb_table_read_target[0].resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.dynamodb_table_read_target[0].resource_id
-  scalable_dimension = aws_appautoscaling_target.dynamodb_table_read_target[0].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.dynamodb_table_read_target[0].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBReadCapacityUtilization"
-    }
-    target_value = 70
+  # TTLè¨­å®šï¼ˆãƒ­ãƒƒã‚¯è‡ªå‹•è§£é™¤ç”¨ï¼‰
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
   }
-}
-
-resource "aws_appautoscaling_policy" "dynamodb_table_write_policy" {
-  count              = var.billing_mode == "PROVISIONED" ? 1 : 0
-  name               = "DynamoDBWriteCapacityUtilization:${aws_appautoscaling_target.dynamodb_table_write_target[0].resource_id}"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.dynamodb_table_write_target[0].resource_id
-  scalable_dimension = aws_appautoscaling_target.dynamodb_table_write_target[0].scalable_dimension
-  service_namespace  = aws_appautoscaling_target.dynamodb_table_write_target[0].service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "DynamoDBWriteCapacityUtilization"
-    }
-    target_value = 70
+  
+  # æš—å·åŒ–è¨­å®š
+  server_side_encryption {
+    enabled = true
   }
+  
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-job-locks-${var.environment}"
+    Purpose = "Job lock management"
+  })
 }

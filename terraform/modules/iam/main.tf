@@ -1,83 +1,9 @@
-# IAM‚∏Â¸Î - Ì¸Î›Í∑¸
-# ¬g: 03-01_s0-¯_§Û’Ès0-.md
+# IAM„É¢„Ç∏„É•„Éº„É´ - „É≠„Éº„É´„Éª„Éù„É™„Ç∑„ÉºÂÆöÁæ©
+# ÂèÇÁÖß: 03-01_Ë©≥Á¥∞Ë®≠Ë®àÊõ∏_IAMË®≠Ë®à.md
 
-# Step FunctionsüLÌ¸Î
-resource "aws_iam_role" "stepfunctions_execution_role" {
-  name = "csv-batch-stepfunctions-role-${var.environment}"
-  
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "states.amazonaws.com"
-        }
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Step Functionscﬁ√◊(›Í∑¸
-resource "aws_iam_policy" "stepfunctions_distributed_map_policy" {
-  name        = "csv-batch-stepfunctions-distributed-map-policy-${var.environment}"
-  description = "Policy for Step Functions distributed map processing"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Resource = [
-          "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:csv-processor-${var.environment}",
-          "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:csv-processor-${var.environment}:*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "arn:aws:s3:::${var.s3_bucket_name}",
-          "arn:aws:s3:::${var.s3_bucket_name}/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
-        ]
-        Resource = [
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/stepfunctions/*"
-        ]
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Step FunctionsÌ¸Îk›Í∑¸¢ø√¡
-resource "aws_iam_role_policy_attachment" "stepfunctions_distributed_map" {
-  role       = aws_iam_role.stepfunctions_execution_role.name
-  policy_arn = aws_iam_policy.stepfunctions_distributed_map_policy.arn
-}
-
-# LambdaüLÌ¸Î
+# LambdaÂÆüË°å„É≠„Éº„É´
 resource "aws_iam_role" "lambda_execution_role" {
-  name = "csv-batch-lambda-role-${var.environment}"
+  name = "csv-lambda-execution-role-${var.environment}"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -92,38 +18,27 @@ resource "aws_iam_role" "lambda_execution_role" {
     ]
   })
   
-  tags = var.tags
-}
-
-# Lambda VPC•ö›Í∑¸
-resource "aws_iam_policy" "lambda_vpc_policy" {
-  name        = "csv-batch-lambda-vpc-policy-${var.environment}"
-  description = "Policy for Lambda VPC access"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface",
-          "ec2:AttachNetworkInterface",
-          "ec2:DetachNetworkInterface"
-        ]
-        Resource = "*"
-      }
-    ]
+  tags = merge(var.tags, {
+    Name = "csv-lambda-execution-role-${var.environment}"
   })
-  
-  tags = var.tags
 }
 
-# Lambda S3¢Øªπ›Í∑¸
-resource "aws_iam_policy" "lambda_s3_policy" {
-  name        = "csv-batch-lambda-s3-policy-${var.environment}"
-  description = "Policy for Lambda S3 access"
+# LambdaÂü∫Êú¨ÂÆüË°å„Éù„É™„Ç∑„Éº„Çí„Ç¢„Çø„ÉÉ„ÉÅ
+resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  role       = aws_iam_role.lambda_execution_role.name
+}
+
+# Lambda VPCÂÆüË°å„Éù„É™„Ç∑„Éº„Çí„Ç¢„Çø„ÉÉ„ÉÅ
+resource "aws_iam_role_policy_attachment" "lambda_vpc_execution" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+  role       = aws_iam_role.lambda_execution_role.name
+}
+
+# Lambda„Ç´„Çπ„Çø„É†„Éù„É™„Ç∑„ÉºÔºàS3„ÄÅDynamoDB„ÄÅStep Functions„ÄÅAuroraÔºâ
+resource "aws_iam_role_policy" "lambda_custom_policy" {
+  name = "csv-lambda-custom-policy-${var.environment}"
+  role = aws_iam_role.lambda_execution_role.id
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -133,170 +48,114 @@ resource "aws_iam_policy" "lambda_s3_policy" {
         Action = [
           "s3:GetObject",
           "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::${var.s3_bucket_name}/*"
+          "arn:aws:s3:::${var.project_name}-processing-${var.environment}",
+          "arn:aws:s3:::${var.project_name}-processing-${var.environment}/*"
         ]
       },
       {
         Effect = "Allow"
         Action = [
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "arn:aws:s3:::${var.s3_bucket_name}"
-        ]
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Lambda DynamoDB¢Øªπ›Í∑¸
-resource "aws_iam_policy" "lambda_dynamodb_policy" {
-  name        = "csv-batch-lambda-dynamodb-policy-${var.environment}"
-  description = "Policy for Lambda DynamoDB access"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:PutItem",
           "dynamodb:GetItem",
+          "dynamodb:PutItem",
           "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
           "dynamodb:Query",
           "dynamodb:Scan"
         ]
         Resource = [
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/csv-audit-logs-${var.environment}",
-          "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/csv-audit-logs-${var.environment}/index/*"
-        ]
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Lambda RDS Aurora¢Øªπ›Í∑¸
-resource "aws_iam_policy" "lambda_rds_policy" {
-  name        = "csv-batch-lambda-rds-policy-${var.environment}"
-  description = "Policy for Lambda Aurora access"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "rds-data:BatchExecuteStatement",
-          "rds-data:BeginTransaction",
-          "rds-data:CommitTransaction",
-          "rds-data:ExecuteStatement",
-          "rds-data:RollbackTransaction"
-        ]
-        Resource = [
-          "arn:aws:rds:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:cluster:csv-batch-aurora-${var.environment}"
+          "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-batch-jobs-${var.environment}",
+          "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-batch-jobs-${var.environment}/index/*",
+          "arn:aws:dynamodb:${var.aws_region}:*:table/${var.project_name}-job-locks-${var.environment}"
         ]
       },
       {
         Effect = "Allow"
         Action = [
-          "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
+          "states:StartExecution",
+          "states:DescribeExecution",
+          "states:StopExecution"
         ]
-        Resource = [
-          "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:rds-db-credentials/*"
-        ]
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Lambda CloudWatch Logs›Í∑¸
-resource "aws_iam_policy" "lambda_logs_policy" {
-  name        = "csv-batch-lambda-logs-policy-${var.environment}"
-  description = "Policy for Lambda CloudWatch Logs access"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
+        Resource = "arn:aws:states:${var.aws_region}:*:stateMachine:${var.project_name}-workflow-${var.environment}"
+      },
       {
         Effect = "Allow"
         Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = [
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/csv-processor-${var.environment}:*"
-        ]
-      }
-    ]
-  })
-  
-  tags = var.tags
-}
-
-# Lambda X-Ray›Í∑¸
-resource "aws_iam_policy" "lambda_xray_policy" {
-  name        = "csv-batch-lambda-xray-policy-${var.environment}"
-  description = "Policy for Lambda X-Ray tracing"
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "xray:PutTraceSegments",
-          "xray:PutTelemetryRecords"
+          "rds:DescribeDBClusters",
+          "rds:DescribeDBInstances"
         ]
         Resource = "*"
       }
     ]
   })
+}
+
+# Step FunctionsÂÆüË°å„É≠„Éº„É´
+resource "aws_iam_role" "step_functions_execution_role" {
+  name = "csv-step-functions-execution-role-${var.environment}"
   
-  tags = var.tags
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "states.amazonaws.com"
+        }
+      }
+    ]
+  })
+  
+  tags = merge(var.tags, {
+    Name = "csv-step-functions-execution-role-${var.environment}"
+  })
 }
 
-# LambdaüLÌ¸Îk›Í∑¸í¢ø√¡
-resource "aws_iam_role_policy_attachment" "lambda_vpc_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_vpc_policy.arn
+# Step Functions LambdaÂëº„Å≥Âá∫„Åó„Éù„É™„Ç∑„Éº
+resource "aws_iam_role_policy" "step_functions_lambda_policy" {
+  name = "csv-step-functions-lambda-policy-${var.environment}"
+  role = aws_iam_role.step_functions_execution_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = "arn:aws:lambda:${var.aws_region}:*:function:${var.project_name}-*-${var.environment}"
+      }
+    ]
+  })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_s3_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_s3_policy.arn
+# CloudWatch LogsÊõ∏„ÅçËæº„Åø„Éù„É™„Ç∑„Éº
+resource "aws_iam_role_policy" "step_functions_logs_policy" {
+  name = "csv-step-functions-logs-policy-${var.environment}"
+  role = aws_iam_role.step_functions_execution_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogDelivery",
+          "logs:GetLogDelivery",
+          "logs:UpdateLogDelivery",
+          "logs:DeleteLogDelivery",
+          "logs:ListLogDeliveries",
+          "logs:PutResourcePolicy",
+          "logs:DescribeResourcePolicies",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
-
-resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_dynamodb_policy.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_rds_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_rds_policy.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_logs_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_logs_policy.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_xray_attachment" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = aws_iam_policy.lambda_xray_policy.arn
-}
-
-# «¸øΩ¸π
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}

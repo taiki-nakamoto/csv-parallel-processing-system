@@ -1,48 +1,21 @@
-# DynamoDBâ¸åüëú›$š©
+# DynamoDBãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - å‡ºåŠ›å®šç¾©
 
-output "audit_table_name" {
-  description = "DynamoDB audit logs table name"
-  value       = aws_dynamodb_table.audit_logs.name
+output "batch_jobs_table_name" {
+  description = "Batch jobs table name"
+  value       = aws_dynamodb_table.batch_jobs.name
 }
 
-output "audit_table_arn" {
-  description = "DynamoDB audit logs table ARN"
-  value       = aws_dynamodb_table.audit_logs.arn
+output "batch_jobs_table_arn" {
+  description = "Batch jobs table ARN"
+  value       = aws_dynamodb_table.batch_jobs.arn
 }
 
-output "audit_table_id" {
-  description = "DynamoDB audit logs table ID"
-  value       = aws_dynamodb_table.audit_logs.id
+output "job_locks_table_name" {
+  description = "Job locks table name"
+  value       = aws_dynamodb_table.job_locks.name
 }
 
-output "audit_table_stream_arn" {
-  description = "DynamoDB audit logs table stream ARN"
-  value       = aws_dynamodb_table.audit_logs.stream_arn
-}
-
-# Global Secondary Index information
-output "file_name_index_name" {
-  description = "FileNameIndex GSI name"
-  value       = "FileNameIndex"
-}
-
-output "status_index_name" {
-  description = "StatusIndex GSI name"
-  value       = "StatusIndex"
-}
-
-# Table configuration
-output "billing_mode" {
-  description = "DynamoDB billing mode"
-  value       = aws_dynamodb_table.audit_logs.billing_mode
-}
-
-output "ttl_attribute" {
-  description = "TTL attribute name"
-  value       = aws_dynamodb_table.audit_logs.ttl[0].attribute_name
-}
-
-output "ttl_enabled" {
-  description = "TTL enabled status"
-  value       = aws_dynamodb_table.audit_logs.ttl[0].enabled
+output "job_locks_table_arn" {
+  description = "Job locks table ARN"
+  value       = aws_dynamodb_table.job_locks.arn
 }
