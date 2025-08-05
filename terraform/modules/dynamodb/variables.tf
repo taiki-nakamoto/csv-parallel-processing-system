@@ -20,6 +20,12 @@ variable "billing_mode" {
   }
 }
 
+variable "kms_key_id" {
+  description = "KMS key ID for DynamoDB encryption"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
