@@ -46,7 +46,7 @@ WORKDIR /csvworkspace
 
 # ユーザーを作成し、デフォルトユーザーに設定
 ARG USERNAME=vscode
-ARG USER_UID=1000
+ARG USER_UID=5000
 
 # ユーザーが存在しない場合のみ、ユーザーとグループを作成
 RUN if ! id -u $USERNAME >/dev/null 2>&1; then \
