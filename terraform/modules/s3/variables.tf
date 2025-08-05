@@ -34,6 +34,12 @@ variable "lambda_permission_resource" {
   default     = ""
 }
 
+variable "cors_allowed_origins" {
+  description = "List of allowed origins for CORS configuration"
+  type        = list(string)
+  default     = ["https://external-system.example.com"]
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
