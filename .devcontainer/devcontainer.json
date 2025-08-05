@@ -6,14 +6,10 @@
   "service": "dev-container",
   "workspaceFolder": "/csvworkspace",
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "npm install",
   
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "22"
-    },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3.12"
     },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/git:1": {}
@@ -23,9 +19,6 @@
     "vscode": {
       "extensions": [
         "ms-vscode.vscode-typescript-next",
-        "ms-python.python",
-        "ms-python.flake8",
-        "ms-python.black-formatter",
         "amazonwebservices.aws-toolkit-vscode",
         "hashicorp.terraform",
         "ms-vscode.vscode-json",
@@ -35,11 +28,7 @@
         "bierner.markdown-mermaid"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "python.defaultInterpreterPath": "/usr/local/bin/python",
-        "python.linting.enabled": true,
-        "python.linting.flake8Enabled": true,
-        "python.formatting.provider": "black"
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   },
@@ -68,8 +57,7 @@
     }
   },
   
-  "postCreateCommand": ".devcontainer/setup-scripts/install-aws-cli.sh && .devcontainer/setup-scripts/install-sam-cli.sh",
-  "postStartCommand": ".devcontainer/setup-scripts/setup-minio.sh && .devcontainer/setup-scripts/setup-postgres.sh",
+  "postCreateCommand": "npm install"
   
   // "remoteUser": "vscode"
 }
