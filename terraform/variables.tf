@@ -42,7 +42,7 @@ variable "private_subnet_cidr" {
 variable "lambda_runtime" {
   description = "Lambda runtime"
   type        = string
-  default     = "nodejs18.x"
+  default     = "nodejs20.x"
 }
 
 variable "lambda_timeout" {
@@ -75,7 +75,7 @@ variable "dynamodb_billing_mode" {
 variable "aurora_engine_version" {
   description = "Aurora PostgreSQL engine version"
   type        = string
-  default     = "15.3"
+  default     = "17.5"
 }
 
 variable "aurora_instance_class" {
