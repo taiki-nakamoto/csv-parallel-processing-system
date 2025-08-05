@@ -6,6 +6,7 @@
   "service": "dev-container",
   "workspaceFolder": "/csvworkspace",
   "shutdownAction": "stopCompose",
+  "postCreateCommand": "npm install",
   
   "features": {
     "ghcr.io/devcontainers/features/node:1": {

@@ -40,9 +40,9 @@ RUN npm install -g \
 # 作業ディレクトリ設定
 WORKDIR /csvworkspace
 
-# package.jsonベースでの依存関係管理
-COPY package*.json ./
-RUN npm install
+# # package.jsonベースでの依存関係管理
+# COPY package*.json ./
+# RUN npm install
 
 # デフォルトユーザー設定
 USER vscode
