@@ -445,7 +445,7 @@ S3 ObjectCreatedイベントからの入力データ形式。
   "detail": {
     "version": "0",
     "bucket": {
-      "name": "csv-input-bucket"
+      "name": "csv-processing-bucket"
     },
     "object": {
       "key": "data/user-log-20240802-001.csv",
