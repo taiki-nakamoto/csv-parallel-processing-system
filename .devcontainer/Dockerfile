@@ -42,7 +42,7 @@ WORKDIR /csvworkspace
 
 # package.jsonベースでの依存関係管理
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # デフォルトユーザー設定
 USER vscode
