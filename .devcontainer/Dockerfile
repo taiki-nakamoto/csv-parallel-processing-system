@@ -31,16 +31,7 @@ RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
     && chmod +x mc \
     && mv mc /usr/local/bin/
 
-# Python開発環境
-RUN pip install --no-cache-dir \
-    boto3 \
-    pytest \
-    pytest-cov \
-    black \
-    flake8 \
-    mypy
-
-# Node.js開発環境
+# Node.js/TypeScript開発環境
 RUN npm install -g \
     typescript \
     @types/node \
@@ -48,7 +39,11 @@ RUN npm install -g \
     jest \
     @types/jest \
     eslint \
-    prettier
+    prettier \
+    @aws-sdk/client-s3 \
+    @aws-sdk/client-dynamodb \
+    @aws-sdk/client-lambda \
+    @aws-sdk/client-step-functions
 
 # 作業ディレクトリ設定
 WORKDIR /csvworkspace
