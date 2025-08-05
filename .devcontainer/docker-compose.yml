@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # 開発コンテナ
+  dev-container:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # - ../..:/csvworkspace:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sleep infinity
+    networks:
+      - aws-local-dev
+    environment:
+      - AWS_DEFAULT_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - MINIO_ENDPOINT=http://minio:5000
+      - POSTGRES_HOST=postgres
+      - DYNAMODB_ENDPOINT=http://dynamodb:4500
+
+  # MinIO (S3代替)
+  minio:
+    image: minio/minio:latest
+    container_name: csv-minio
+    ports:
+      - "5000:9000"  # API
+      - "6001:9001"  # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - ../local-env/minio/data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - aws-local-dev
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # PostgreSQL (Aurora代替)
+  postgres:
+    image: postgres:15-alpine
+    container_name: csv-postgres
+    environment:
+      POSTGRES_DB: csv_processing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../local-env/postgres/data:/var/lib/postgresql/data
+      - ../local-env/postgres/initdb:/docker-entrypoint-initdb.d
+    networks:
+      - aws-local-dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin 4
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: csv-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - ../local-env/pgadmin:/var/lib/pgadmin
+    networks:
+      - aws-local-dev
+    depends_on:
+      - postgres
+
+  # DynamoDB Local
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: csv-dynamodb
+    ports:
+      - "4500:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    volumes:
+      - ../local-env/dynamodb/data:/home/dynamodblocal/data
+    networks:
+      - aws-local-dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+  minio_data:
+  dynamodb_data:
+  pgadmin_data:
+
+networks:
+  aws-local-dev:
+    name: aws-local-dev
+    driver: bridge
