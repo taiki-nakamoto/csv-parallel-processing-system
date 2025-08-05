@@ -47,14 +47,14 @@ WORKDIR /csvworkspace
 # ユーザーを作成し、デフォルトユーザーに設定
 ARG USERNAME=vscode
 ARG USER_UID=1000
-ARG USER_GID=$USER_UID
 
-# ユーザーが存在しない場合のみ作成
-RUN if ! id "$USERNAME" >/dev/null 2>&1; then \
-        groupadd --gid $USER_GID $USERNAME && \
-        useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
-        chown $USERNAME:$USERNAME /csvworkspace; \
-    fi
+# ユーザーが存在しない場合のみ、ユーザーとグループを作成
+RUN if ! id -u $USERNAME >/dev/null 2>&1; then \
+    useradd -s /bin/bash -m $USERNAME --uid $USER_UID; \
+fi
+
+# 作業ディレクトリの所有者を変更
+RUN chown -R $USERNAME:$USERNAME /csvworkspace
 
 # デフォルトユーザー設定
 USER $USERNAME
