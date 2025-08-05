@@ -1,7 +1,7 @@
-# ÍÃÈïü¯â¸åüë - VPCµÖÍÃÈ»­åêÆ£°ëü×
-# Âg: 03-01_s0-ø_¤óÕés0-.md
+# ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« - VPCã€ã‚µãƒ–ãƒãƒƒãƒˆã€ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£ã‚°ãƒ«ãƒ¼ãƒ—
+# å‚ç…§: 03-11_è©³ç´°è¨­è¨ˆæ›¸_ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£è©³ç´°è¨­è¨ˆ.md
 
-# VPC\
+# VPCä½œæˆ
 resource "aws_vpc" "csv_batch_vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -12,7 +12,7 @@ resource "aws_vpc" "csv_batch_vpc" {
   })
 }
 
-# ¤ó¿üÍÃÈ²üÈ¦§¤\
+# ã‚¤ãƒ³ã‚¿ãƒ¼ãƒãƒƒãƒˆã‚²ãƒ¼ãƒˆã‚¦ã‚§ã‚¤ä½œæˆ
 resource "aws_internet_gateway" "csv_batch_igw" {
   vpc_id = aws_vpc.csv_batch_vpc.id
   
@@ -21,7 +21,7 @@ resource "aws_internet_gateway" "csv_batch_igw" {
   })
 }
 
-# ÑÖêÃ¯µÖÍÃÈ\
+# ãƒ‘ãƒ–ãƒªãƒƒã‚¯ã‚µãƒ–ãƒãƒƒãƒˆä½œæˆï¼ˆNAT Gatewayç”¨ï¼‰
 resource "aws_subnet" "public_subnet" {
   vpc_id                  = aws_vpc.csv_batch_vpc.id
   cidr_block              = var.public_subnet_cidr
@@ -31,32 +31,36 @@ resource "aws_subnet" "public_subnet" {
   tags = merge(var.tags, {
     Name = "csv-batch-public-subnet-${var.environment}"
     Type = "Public"
+    AZ   = "1a"
   })
 }
 
-# ×é¤ÙüÈµÖÍÃÈ\
+# ãƒ—ãƒ©ã‚¤ãƒ™ãƒ¼ãƒˆã‚µãƒ–ãƒãƒƒãƒˆ1ä½œæˆï¼ˆAZ-1a: Lambda, Aurora Primaryï¼‰
 resource "aws_subnet" "private_subnet" {
   vpc_id            = aws_vpc.csv_batch_vpc.id
   cidr_block        = var.private_subnet_cidr
   availability_zone = "${var.aws_region}a"
   
   tags = merge(var.tags, {
-    Name = "csv-batch-private-subnet-${var.environment}"
+    Name = "csv-batch-private-subnet-1a-${var.environment}"
     Type = "Private"
+    AZ   = "1a"
   })
 }
 
-# ×é¤ÙüÈµÖÍÃÈ2\Aurora(pAZÅ	
+# ãƒ—ãƒ©ã‚¤ãƒ™ãƒ¼ãƒˆã‚µãƒ–ãƒãƒƒãƒˆ2ä½œæˆï¼ˆAZ-1c: Aurora Replicaï¼‰
 resource "aws_subnet" "private_subnet_2" {
   vpc_id            = aws_vpc.csv_batch_vpc.id
   cidr_block        = var.private_subnet_2_cidr
   availability_zone = "${var.aws_region}c"
   
   tags = merge(var.tags, {
-    Name = "csv-batch-private-subnet-2-${var.environment}"
+    Name = "csv-batch-private-subnet-1c-${var.environment}"
     Type = "Private"
+    AZ   = "1c"
   })
 }
+
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat_eip" {
@@ -69,7 +73,7 @@ resource "aws_eip" "nat_eip" {
   depends_on = [aws_internet_gateway.csv_batch_igw]
 }
 
-# NAT²üÈ¦§¤\
+# NATã‚²ãƒ¼ãƒˆã‚¦ã‚§ã‚¤ä½œæˆ
 resource "aws_nat_gateway" "csv_batch_nat" {
   allocation_id = aws_eip.nat_eip.id
   subnet_id     = aws_subnet.public_subnet.id
@@ -81,7 +85,7 @@ resource "aws_nat_gateway" "csv_batch_nat" {
   depends_on = [aws_internet_gateway.csv_batch_igw]
 }
 
-# ÑÖêÃ¯ëüÈÆüÖë
+# ãƒ‘ãƒ–ãƒªãƒƒã‚¯ãƒ«ãƒ¼ãƒˆãƒ†ãƒ¼ãƒ–ãƒ«
 resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.csv_batch_vpc.id
   
@@ -95,7 +99,7 @@ resource "aws_route_table" "public_rt" {
   })
 }
 
-# ×é¤ÙüÈëüÈÆüÖë
+# ãƒ—ãƒ©ã‚¤ãƒ™ãƒ¼ãƒˆãƒ«ãƒ¼ãƒˆãƒ†ãƒ¼ãƒ–ãƒ«
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.csv_batch_vpc.id
   
@@ -109,7 +113,7 @@ resource "aws_route_table" "private_rt" {
   })
 }
 
-# ëüÈÆüÖëhµÖÍÃÈn¢#ØQ
+# ãƒ«ãƒ¼ãƒˆãƒ†ãƒ¼ãƒ–ãƒ«ã¨ã‚µãƒ–ãƒãƒƒãƒˆã®é–¢é€£ä»˜ã‘
 resource "aws_route_table_association" "public_rta" {
   subnet_id      = aws_subnet.public_subnet.id
   route_table_id = aws_route_table.public_rt.id
@@ -125,21 +129,25 @@ resource "aws_route_table_association" "private_rta_2" {
   route_table_id = aws_route_table.private_rt.id
 }
 
-# Lambda(»­åêÆ£°ëü×
+
+# Lambdaç”¨ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£ã‚°ãƒ«ãƒ¼ãƒ—ï¼ˆè©³ç´°è¨­è¨ˆæ›¸æº–æ‹ ï¼‰
 resource "aws_security_group" "lambda_sg" {
-  name        = "csv-batch-lambda-sg-${var.environment}"
+  name        = "csv-lambda-sg-${var.environment}"
   description = "Security group for Lambda functions"
   vpc_id      = aws_vpc.csv_batch_vpc.id
   
-  # Aurora PostgreSQLxn¢¯»¹1ï
+  # Aurora PostgreSQLã¸ã®ã‚¢ã‚¯ã‚»ã‚¹è¨±å¯ï¼ˆ5432ï¼‰
   egress {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = [var.private_subnet_cidr, var.private_subnet_2_cidr]
+    cidr_blocks = [
+      var.private_subnet_cidr, 
+      var.private_subnet_2_cidr
+    ]
   }
   
-  # HTTPS¢¦ÈĞ¦óÉAWS API¢¯»¹(	
+  # HTTPSã‚¢ã‚¦ãƒˆãƒã‚¦ãƒ³ãƒ‰ï¼ˆAWS APIã‚¢ã‚¯ã‚»ã‚¹ç”¨ï¼‰
   egress {
     from_port   = 443
     to_port     = 443
@@ -147,7 +155,7 @@ resource "aws_security_group" "lambda_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   
-  # HTTP ¢¦ÈĞ¦óÉÑÃ±ü¸À¦óíüÉI	
+  # HTTPã‚¢ã‚¦ãƒˆãƒã‚¦ãƒ³ãƒ‰ï¼ˆãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ç­‰ï¼‰
   egress {
     from_port   = 80
     to_port     = 80
@@ -156,17 +164,17 @@ resource "aws_security_group" "lambda_sg" {
   }
   
   tags = merge(var.tags, {
-    Name = "csv-batch-lambda-sg-${var.environment}"
+    Name = "csv-lambda-sg-${var.environment}"
   })
 }
 
-# Aurora(»­åêÆ£°ëü×
+# Auroraç”¨ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£ã‚°ãƒ«ãƒ¼ãƒ—ï¼ˆè©³ç´°è¨­è¨ˆæ›¸æº–æ‹ ï¼‰
 resource "aws_security_group" "aurora_sg" {
-  name        = "csv-batch-aurora-sg-${var.environment}"
-  description = "Security group for Aurora PostgreSQL"
+  name        = "csv-aurora-sg-${var.environment}"
+  description = "Security group for Aurora PostgreSQL cluster"
   vpc_id      = aws_vpc.csv_batch_vpc.id
   
-  # LambdaK‰n¢¯»¹1ï
+  # Lambdaã‹ã‚‰ã®ã‚¢ã‚¯ã‚»ã‚¹è¨±å¯
   ingress {
     from_port       = 5432
     to_port         = 5432
@@ -175,16 +183,17 @@ resource "aws_security_group" "aurora_sg" {
   }
   
   tags = merge(var.tags, {
-    Name = "csv-batch-aurora-sg-${var.environment}"
+    Name = "csv-aurora-sg-${var.environment}"
   })
 }
 
-# VPC¨óÉİ¤óÈ(»­åêÆ£°ëü×
+# VPCã‚¨ãƒ³ãƒ‰ãƒã‚¤ãƒ³ãƒˆç”¨ã‚»ã‚­ãƒ¥ãƒªãƒ†ã‚£ã‚°ãƒ«ãƒ¼ãƒ—
 resource "aws_security_group" "vpc_endpoint_sg" {
-  name        = "csv-batch-vpce-sg-${var.environment}"
+  name        = "csv-vpce-sg-${var.environment}"
   description = "Security group for VPC Endpoints"
   vpc_id      = aws_vpc.csv_batch_vpc.id
   
+  # Lambdaã‹ã‚‰ã®ã‚¢ã‚¯ã‚»ã‚¹è¨±å¯
   ingress {
     from_port       = 443
     to_port         = 443
@@ -193,6 +202,30 @@ resource "aws_security_group" "vpc_endpoint_sg" {
   }
   
   tags = merge(var.tags, {
-    Name = "csv-batch-vpce-sg-${var.environment}"
+    Name = "csv-vpce-sg-${var.environment}"
+  })
+}
+
+# VPCã‚¨ãƒ³ãƒ‰ãƒã‚¤ãƒ³ãƒˆ - S3 Gateway Endpoint
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.csv_batch_vpc.id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  
+  route_table_ids = [aws_route_table.private_rt.id]
+  
+  tags = merge(var.tags, {
+    Name = "csv-s3-vpce-${var.environment}"
+  })
+}
+
+# VPCã‚¨ãƒ³ãƒ‰ãƒã‚¤ãƒ³ãƒˆ - DynamoDB Gateway Endpoint
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id       = aws_vpc.csv_batch_vpc.id
+  service_name = "com.amazonaws.${var.aws_region}.dynamodb"
+  
+  route_table_ids = [aws_route_table.private_rt.id]
+  
+  tags = merge(var.tags, {
+    Name = "csv-dynamodb-vpce-${var.environment}"
   })
 }

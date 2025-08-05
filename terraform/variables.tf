@@ -29,20 +29,21 @@ variable "vpc_cidr" {
 variable "public_subnet_cidr" {
   description = "Public subnet CIDR block"
   type        = string
-  default     = "10.0.1.0/27"
+  default     = "10.0.1.192/26"
 }
 
 variable "private_subnet_cidr" {
-  description = "Private subnet CIDR block"
+  description = "Private subnet CIDR block (AZ-1a)"
   type        = string
-  default     = "10.0.1.32/27"
+  default     = "10.0.1.0/26"
 }
 
 variable "private_subnet_2_cidr" {
-  description = "Private subnet 2 CIDR block for Aurora (multi-AZ)"
+  description = "Private subnet 2 CIDR block (AZ-1c) for Aurora multi-AZ"
   type        = string
-  default     = "10.0.1.64/27"
+  default     = "10.0.1.64/26"
 }
+
 
 # Lambda設定
 variable "lambda_runtime" {
