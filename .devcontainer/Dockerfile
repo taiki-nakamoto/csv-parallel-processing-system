@@ -44,5 +44,17 @@ WORKDIR /csvworkspace
 # COPY package*.json ./
 # RUN npm install
 
+# ユーザーを作成し、デフォルトユーザーに設定
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# ユーザーが存在しない場合のみ作成
+RUN if ! id "$USERNAME" >/dev/null 2>&1; then \
+        groupadd --gid $USER_GID $USERNAME && \
+        useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
+        chown $USERNAME:$USERNAME /csvworkspace; \
+    fi
+
 # デフォルトユーザー設定
-USER vscode
+USER $USERNAME
