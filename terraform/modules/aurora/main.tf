@@ -22,8 +22,8 @@ resource "aws_rds_cluster" "csv_batch_cluster" {
   
   # バックアップ設定
   backup_retention_period   = var.backup_retention_period
-  backup_window            = var.backup_window
-  maintenance_window       = var.maintenance_window
+  # backup_window            = var.backup_window  # Aurora Serverless v2では非対応
+  # maintenance_window       = var.maintenance_window  # Aurora Serverless v2では非対応
   copy_tags_to_snapshot    = true
   
   # セキュリティ設定
@@ -67,8 +67,8 @@ resource "aws_rds_cluster_instance" "csv_batch_instance" {
   performance_insights_retention_period = var.environment == "prod" ? 731 : 7
   
   # 監視設定
-  monitoring_interval = 60
-  monitoring_role_arn = var.monitoring_role_arn
+  monitoring_interval = 0  # 0に設定（monitoring_role_arnが未設定のため）
+  # monitoring_role_arn = var.monitoring_role_arn  # 今後、監視ロールを作成後に有効化
   
   tags = merge(var.tags, {
     Name = "${var.project_name}-aurora-instance-${var.environment}-${count.index + 1}"
@@ -106,10 +106,11 @@ resource "aws_db_parameter_group" "aurora_pg" {
     value = "1000"  # 1秒以上のクエリをログ出力
   }
   
-  parameter {
-    name  = "log_checkpoints"
-    value = "1"
-  }
+  # log_checkpointsはAurora PostgreSQL 17では利用不可のためコメントアウト
+  # parameter {
+  #   name  = "log_checkpoints"
+  #   value = "1"
+  # }
   
   parameter {
     name  = "log_connections"
@@ -159,9 +160,10 @@ resource "aws_rds_cluster_parameter_group" "aurora_cluster_pg" {
 }
 
 # Aurora クラスターにパラメータグループを適用
-resource "aws_rds_cluster" "csv_batch_cluster_with_params" {
-  count = 0  # 上記のクラスター定義と重複を避けるため、実際の適用は上記で行う
-}
+# 以下のリソースは不要なため削除（上記のクラスター定義で対応済み）
+# resource "aws_rds_cluster" "csv_batch_cluster_with_params" {
+#   count = 0
+# }
 
 # CloudWatch Log Group (Aurora PostgreSQL ログ用)
 resource "aws_cloudwatch_log_group" "aurora_postgresql" {

@@ -1,5 +1,6 @@
-# CloudWatchモジュール - 変数定義
-# 参照: 03-12_設計書_CloudWatch監視設定.md
+# CloudWatchモジュール - 変数定義（個人開発用）
+# 参照: 03-12_詳細設計書_監視・ログ詳細設計.md
+# 注意: 個人開発のため、ログ保存期間のみ設定可能
 
 variable "project_name" {
   description = "Project name"

@@ -57,18 +57,18 @@ output "s3_bucket_arn" {
 # DynamoDB関連
 output "dynamodb_audit_table_name" {
   description = "DynamoDB audit logs table name"
-  value       = module.dynamodb.audit_table_name
+  value       = module.dynamodb.audit_logs_table_name
 }
 
 output "dynamodb_audit_table_arn" {
   description = "DynamoDB audit logs table ARN"
-  value       = module.dynamodb.audit_table_arn
+  value       = module.dynamodb.audit_logs_table_arn
 }
 
 # IAMロール
 output "lambda_execution_role_arn" {
   description = "Lambda execution role ARN"
-  value       = module.iam.lambda_execution_role_arn
+  value       = module.iam.lambda_processor_role_arn
 }
 
 output "step_functions_execution_role_arn" {

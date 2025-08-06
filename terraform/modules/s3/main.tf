@@ -215,4 +215,16 @@ resource "aws_s3_bucket_intelligent_tiering_configuration" "processing" {
   filter {
     prefix = ""
   }
+  
+  # アーカイブアクセスティア（90日後）
+  tiering {
+    access_tier = "ARCHIVE_ACCESS"
+    days        = 90
+  }
+  
+  # ディープアーカイブアクセスティア（180日後）
+  tiering {
+    access_tier = "DEEP_ARCHIVE_ACCESS"
+    days        = 180
+  }
 }

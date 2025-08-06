@@ -1,6 +1,8 @@
-# CloudWatchモジュール - 出力定義
-# 参照: 03-12_設計書_CloudWatch監視設定.md
+# CloudWatchモジュール - 出力定義（個人開発用）
+# 参照: 03-12_詳細設計書_監視・ログ詳細設計.md
+# 注意: 個人開発のため、ロググループ情報のみ出力
 
+# Lambdaロググループ
 output "lambda_log_group_name" {
   description = "Lambda log group name"
   value       = aws_cloudwatch_log_group.lambda_logs.name
@@ -11,6 +13,7 @@ output "lambda_log_group_arn" {
   value       = aws_cloudwatch_log_group.lambda_logs.arn
 }
 
+# Step Functionsロググループ
 output "step_functions_log_group_name" {
   description = "Step Functions log group name"
   value       = aws_cloudwatch_log_group.stepfunctions_logs.name
@@ -21,39 +24,35 @@ output "step_functions_log_group_arn" {
   value       = aws_cloudwatch_log_group.stepfunctions_logs.arn
 }
 
-output "sns_topic_arn" {
-  description = "SNS topic ARN for alerts"
-  value       = aws_sns_topic.alerts.arn
+# アプリケーションロググループ
+output "application_log_group_name" {
+  description = "Application log group name"
+  value       = aws_cloudwatch_log_group.application_logs.name
 }
 
-output "sns_topic_name" {
-  description = "SNS topic name for alerts"
-  value       = aws_sns_topic.alerts.name
+output "application_log_group_arn" {
+  description = "Application log group ARN"
+  value       = aws_cloudwatch_log_group.application_logs.arn
 }
 
-output "dashboard_name" {
-  description = "CloudWatch Dashboard name"
-  value       = aws_cloudwatch_dashboard.csv_processing_dashboard.dashboard_name
+# システムロググループ
+output "system_log_group_name" {
+  description = "System log group name"
+  value       = aws_cloudwatch_log_group.system_logs.name
 }
 
-output "dashboard_url" {
-  description = "CloudWatch Dashboard URL"
-  value       = "https://${data.aws_region.current.name}.console.aws.amazon.com/cloudwatch/home?region=${data.aws_region.current.name}#dashboards:name=${aws_cloudwatch_dashboard.csv_processing_dashboard.dashboard_name}"
+output "system_log_group_arn" {
+  description = "System log group ARN"
+  value       = aws_cloudwatch_log_group.system_logs.arn
 }
 
-# アラーム名リスト
-output "alarm_names" {
-  description = "List of CloudWatch alarm names"
-  value = [
-    aws_cloudwatch_metric_alarm.lambda_error_rate.alarm_name,
-    aws_cloudwatch_metric_alarm.lambda_duration.alarm_name,
-    aws_cloudwatch_metric_alarm.stepfunctions_failed.alarm_name,
-    aws_cloudwatch_metric_alarm.dynamodb_throttling.alarm_name
-  ]
-}
-
-# X-Rayサンプリングルール
-output "xray_sampling_rule_name" {
-  description = "X-Ray sampling rule name"
-  value       = aws_xray_sampling_rule.csv_batch_sampling.rule_name
+# 全ロググループ情報
+output "log_groups" {
+  description = "All log groups created by this module"
+  value = {
+    lambda      = aws_cloudwatch_log_group.lambda_logs.name
+    stepfunctions = aws_cloudwatch_log_group.stepfunctions_logs.name
+    application = aws_cloudwatch_log_group.application_logs.name
+    system      = aws_cloudwatch_log_group.system_logs.name
+  }
 }

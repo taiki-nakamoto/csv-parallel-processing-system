@@ -58,7 +58,7 @@ resource "aws_dynamodb_table" "audit_logs" {
   # 暗号化設定
   server_side_encryption {
     enabled     = true
-    kms_key_id  = var.kms_key_id
+    # kms_key_id  = var.kms_key_id  # server_side_encryptionブロック内ではサポートされていない
   }
   
   tags = merge(var.tags, {
@@ -112,7 +112,7 @@ resource "aws_dynamodb_table" "processing_metadata" {
   # 暗号化設定
   server_side_encryption {
     enabled     = true
-    kms_key_id  = var.kms_key_id
+    # kms_key_id  = var.kms_key_id  # server_side_encryptionブロック内ではサポートされていない
   }
   
   tags = merge(var.tags, {
@@ -179,7 +179,7 @@ resource "aws_dynamodb_table" "batch_jobs" {
   # 暗号化設定
   server_side_encryption {
     enabled     = true
-    kms_key_id  = var.kms_key_id
+    # kms_key_id  = var.kms_key_id  # server_side_encryptionブロック内ではサポートされていない
   }
   
   tags = merge(var.tags, {
@@ -214,7 +214,7 @@ resource "aws_dynamodb_table" "job_locks" {
   # 暗号化設定
   server_side_encryption {
     enabled     = true
-    kms_key_id  = var.kms_key_id
+    # kms_key_id  = var.kms_key_id  # server_side_encryptionブロック内ではサポートされていない
   }
   
   tags = merge(var.tags, {
