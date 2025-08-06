@@ -1,0 +1,21 @@
+{
+  "name": "csv-processing-business-logic",
+  "version": "1.0.0",
+  "description": "Business logic for CSV processing (CsvProcessingLogic, ValidationLogic, DataTransformationLogic)",
+  "main": "src/index.js", 
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.0",
+    "fast-csv": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "csv-processing-aws-sdk-wrapper",
+  "version": "1.0.0", 
+  "description": "AWS SDK wrappers for S3, DynamoDB, Step Functions",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.450.0",
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/client-sfn": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "@aws-sdk/s3-request-presigner": "^3.450.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

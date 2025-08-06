@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CSV並列処理システム - Lambda Functions & Step Functions
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  ProjectName:
+    Type: String
+    Default: csv-parallel-processing
+    Description: Project name for resource naming
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+        POWERTOOLS_SERVICE_NAME: !Sub '${ProjectName}-${Environment}'
+        POWERTOOLS_LOGGER_LOG_LEVEL: INFO
+        POWERTOOLS_LOGGER_SAMPLE_RATE: '1'
+        POWERTOOLS_TRACE_DISABLED: 'false'
+        POWERTOOLS_TRACER_CAPTURE_LAMBDA_HANDLER: 'true'
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true'
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true'
+    Layers:
+      - !Ref CommonLayer
+    VpcConfig:
+      SecurityGroupIds:
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-lambda-sg-${Environment}"
+      SubnetIds:
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-private-subnet-${Environment}"
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-private-subnet-2-${Environment}"
+
+Resources:
+  # Lambda Layer for common dependencies
+  # 共通ユーティリティLayer
+  CommonUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-common-utils-layer-${Environment}'
+      Description: Common utilities for CSV processing system (DateUtils, StringUtils, ValidationUtils, FormatConverters)
+      ContentUri: layers/common-utils/
+      CompatibleRuntimes:
+        - nodejs22.x
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: nodejs22.x
+  
+  # AWS SDK WrapperLayer
+  AwsSdkWrapperLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-aws-sdk-wrapper-layer-${Environment}'
+      Description: AWS SDK wrappers for S3, DynamoDB, Step Functions
+      ContentUri: layers/aws-sdk-wrapper/
+      CompatibleRuntimes:
+        - nodejs22.x
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: nodejs22.x
+  
+  # ビジネスロジックLayer
+  BusinessLogicLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-business-logic-layer-${Environment}'
+      Description: Business logic for CSV processing (CsvProcessingLogic, ValidationLogic, DataTransformationLogic)
+      ContentUri: layers/business-logic/
+      CompatibleRuntimes:
+        - nodejs22.x
+      RetentionPolicy: Retain
+    Metadata:
+      BuildMethod: nodejs22.x
+
+  # 統合Lambda関数 (設計書準拠)
+  CsvProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-csv-processor-${Environment}'
+      CodeUri: src/
+      Handler: handler.handler
+      Description: CSV並列処理システム統合Lambda関数（eventType振り分け）
+      Timeout: 900  # 15分（長時間処理対応）
+      MemorySize: 1024  # 統合関数のため大容量
+      Environment:
+        Variables:
+          # 全機能で使用する環境変数を統合
+          # S3設定
+          INPUT_BUCKET_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-input-bucket-${Environment}"
+          OUTPUT_BUCKET_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-output-bucket-${Environment}"
+          S3_BUCKET_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-s3-bucket-${Environment}"
+          
+          # DynamoDB設定
+          AUDIT_LOG_TABLE_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-audit-logs-${Environment}"
+          PROCESSING_METADATA_TABLE_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-processing-metadata-${Environment}"
+          BATCH_JOBS_TABLE_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-batch-jobs-${Environment}"
+          JOB_LOCKS_TABLE_NAME: !ImportValue
+            Fn::Sub: "${ProjectName}-job-locks-${Environment}"
+          FILE_TRACKING_TABLE_NAME: !Sub "${ProjectName}-file-tracking-${Environment}"
+          
+          # Aurora PostgreSQL設定
+          AURORA_ENDPOINT: !ImportValue
+            Fn::Sub: "${ProjectName}-aurora-endpoint-${Environment}"
+          AURORA_DATABASE_NAME: "csv_processing"
+          AURORA_SECRET_ARN: !ImportValue
+            Fn::Sub: "${ProjectName}-aurora-secret-${Environment}"
+          
+          # Step Functions設定
+          STATE_MACHINE_ARN: !Sub
+            - 'arn:aws:states:${Region}:${Account}:stateMachine:${ProjectName}-csv-processing-${Environment}'
+            - Region: !Ref 'AWS::Region'
+              Account: !Ref 'AWS::AccountId'
+          
+          # システム設定
+          SYSTEM_VERSION: "1.0.0"
+          ENVIRONMENT: !Ref Environment
+          PROJECT_NAME: !Ref ProjectName
+          AWS_REGION: !Ref 'AWS::Region'
+          
+          # 処理設定
+          CHUNK_SIZE: "25"
+          MAX_PARALLEL_WORKERS: "5"
+          PROCESSING_TIMEOUT_SECONDS: "30"
+          MAX_RETRY_ATTEMPTS: "3"
+      
+      # Lambda Layers設定
+      Layers:
+        - !Ref CommonUtilsLayer
+        - !Ref AwsSdkWrapperLayer  
+        - !Ref BusinessLogicLayer
+      
+      # VPC設定（Aurora PostgreSQL接続用）
+      VpcConfig:
+        SecurityGroupIds:
+          - !ImportValue
+              Fn::Sub: "${ProjectName}-lambda-sg-${Environment}"
+        SubnetIds:
+          - !ImportValue
+              Fn::Sub: "${ProjectName}-private-subnet-1-${Environment}"
+          - !ImportValue
+              Fn::Sub: "${ProjectName}-private-subnet-2-${Environment}"
+      
+      Role: !ImportValue
+        Fn::Sub: "${ProjectName}-lambda-role-arn-${Environment}"
+      Events:
+        S3Event:
+          Type: S3
+          Properties:
+            Bucket: !ImportValue
+              Fn::Sub: "${ProjectName}-s3-bucket-${Environment}"
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: input/
+                  - Name: suffix
+                    Value: .csv
+
+  # Step Functions State Machine（統合Lambda関数対応）
+  CsvProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub '${ProjectName}-csv-processing-${Environment}'
+      DefinitionUri: statemachine/csv-processing-workflow.asl.json
+      DefinitionSubstitutions:
+        CsvProcessorFunctionArn: !GetAtt CsvProcessorFunction.Arn
+      Role: !ImportValue
+        Fn::Sub: "${ProjectName}-stepfunctions-role-arn-${Environment}"
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !Sub
+                - 'arn:aws:logs:${Region}:${Account}:log-group:/aws/stepfunctions/${ProjectName}-csv-processing-${Environment}'
+                - Region: !Ref 'AWS::Region'
+                  Account: !Ref 'AWS::AccountId'
+
+Outputs:
+  CsvProcessorFunctionArn:
+    Description: CSV Processor Unified Lambda Function ARN
+    Value: !GetAtt CsvProcessorFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-csv-processor-function-arn-${Environment}'
+
+  CsvProcessingStateMachineArn:
+    Description: CSV Processing Step Functions State Machine ARN
+    Value: !GetAtt CsvProcessingStateMachine.Arn
+    Export:
+      Name: !Sub '${ProjectName}-csv-processing-statemachine-arn-${Environment}'
+
+  CommonUtilsLayerArn:
+    Description: Common Utils Layer ARN
+    Value: !Ref CommonUtilsLayer
+    Export:
+      Name: !Sub '${ProjectName}-common-utils-layer-arn-${Environment}'
+  
+  AwsSdkWrapperLayerArn:
+    Description: AWS SDK Wrapper Layer ARN
+    Value: !Ref AwsSdkWrapperLayer
+    Export:
+      Name: !Sub '${ProjectName}-aws-sdk-wrapper-layer-arn-${Environment}'
+  
+  BusinessLogicLayerArn:
+    Description: Business Logic Layer ARN
+    Value: !Ref BusinessLogicLayer
+    Export:
+      Name: !Sub '${ProjectName}-business-logic-layer-arn-${Environment}'

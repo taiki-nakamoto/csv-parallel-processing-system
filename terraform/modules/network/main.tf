@@ -229,3 +229,45 @@ resource "aws_vpc_endpoint" "dynamodb" {
     Name = "csv-dynamodb-vpce-${var.environment}"
   })
 }
+
+# VPCエンドポイント - Secrets Manager Interface Endpoint
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.csv_batch_vpc.id
+  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id, aws_subnet.private_subnet_2.id]
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  private_dns_enabled = true
+  
+  tags = merge(var.tags, {
+    Name = "csv-secretsmanager-vpce-${var.environment}"
+  })
+}
+
+# VPCエンドポイント - Step Functions Interface Endpoint  
+resource "aws_vpc_endpoint" "stepfunctions" {
+  vpc_id              = aws_vpc.csv_batch_vpc.id
+  service_name        = "com.amazonaws.${var.aws_region}.states"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id, aws_subnet.private_subnet_2.id]
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  private_dns_enabled = true
+  
+  tags = merge(var.tags, {
+    Name = "csv-stepfunctions-vpce-${var.environment}"
+  })
+}
+
+# VPCエンドポイント - CloudWatch Logs Interface Endpoint
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.csv_batch_vpc.id
+  service_name        = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_subnet.id, aws_subnet.private_subnet_2.id]
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  private_dns_enabled = true
+  
+  tags = merge(var.tags, {
+    Name = "csv-logs-vpce-${var.environment}"
+  })
+}
