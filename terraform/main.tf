@@ -145,3 +145,144 @@ module "cloudwatch" {
   
   tags = local.common_tags
 }
+
+# EventBridgeモジュール（設計書準拠：02-03_EventBridgeルール基本設計）
+module "eventbridge" {
+  source = "./modules/eventbridge"
+  
+  project_name = var.project_name
+  environment  = var.environment
+  aws_region   = var.aws_region
+  
+  # S3バケット名（EventBridge監視対象）
+  s3_bucket_name = module.s3.bucket_name
+  
+  # Step Functions ARN（自動起動対象、SAMで作成された実際のARN使用）
+  step_functions_arn = "arn:aws:states:${var.aws_region}:${local.account_id}:stateMachine:${var.project_name}-csv-processing-${var.environment}"
+  
+  # EventBridge実行ロール
+  eventbridge_execution_role_arn = module.iam.eventbridge_execution_role_arn
+  
+  tags = local.common_tags
+  
+  depends_on = [
+    module.s3,
+    module.iam
+  ]
+}
+# CloudFormation Stack for Exports (SAM Integration)
+resource "aws_cloudformation_stack" "exports" {
+  name = "${var.project_name}-terraform-exports-${var.environment}"
+  
+  template_body = jsonencode({
+    AWSTemplateFormatVersion = "2010-09-09"
+    Description = "Terraform値のCloudFormation Export（SAM連携用）"
+    
+    Resources = {
+      DummyResource = {
+        Type = "AWS::CloudFormation::WaitConditionHandle"
+      }
+    }
+    
+    Outputs = {
+      # VPC関連
+      LambdaSG = {
+        Description = "Lambda Security Group ID"
+        Value = module.network.lambda_security_group_id
+        Export = {
+          Name = "${var.project_name}-lambda-sg-${var.environment}"
+        }
+      }
+      PrivateSubnet = {
+        Description = "Private Subnet ID"
+        Value = module.network.private_subnet_id
+        Export = {
+          Name = "${var.project_name}-private-subnet-${var.environment}"
+        }
+      }
+      PrivateSubnet2 = {
+        Description = "Private Subnet 2 ID"
+        Value = module.network.private_subnet_2_id
+        Export = {
+          Name = "${var.project_name}-private-subnet-2-${var.environment}"
+        }
+      }
+      
+      # S3関連
+      S3Bucket = {
+        Description = "S3 Bucket Name"
+        Value = module.s3.bucket_name
+        Export = {
+          Name = "${var.project_name}-s3-bucket-${var.environment}"
+        }
+      }
+      
+      # DynamoDB関連
+      AuditTable = {
+        Description = "Audit Logs Table Name"
+        Value = module.dynamodb.audit_logs_table_name
+        Export = {
+          Name = "${var.project_name}-audit-logs-${var.environment}"
+        }
+      }
+      ProcessingMetadataTable = {
+        Description = "Processing Metadata Table Name"
+        Value = module.dynamodb.processing_metadata_table_name
+        Export = {
+          Name = "${var.project_name}-processing-metadata-${var.environment}"
+        }
+      }
+      BatchJobsTable = {
+        Description = "Batch Jobs Table Name"
+        Value = module.dynamodb.batch_jobs_table_name
+        Export = {
+          Name = "${var.project_name}-batch-jobs-${var.environment}"
+        }
+      }
+      JobLocksTable = {
+        Description = "Job Locks Table Name"
+        Value = module.dynamodb.job_locks_table_name
+        Export = {
+          Name = "${var.project_name}-job-locks-${var.environment}"
+        }
+      }
+      
+      # Aurora関連  
+      AuroraEndpoint = {
+        Description = "Aurora Cluster Endpoint"
+        Value = module.aurora.cluster_endpoint
+        Export = {
+          Name = "${var.project_name}-aurora-endpoint-${var.environment}"
+        }
+      }
+      AuroraSecret = {
+        Description = "Aurora Secret ARN"
+        Value = "arn:aws:secretsmanager:ap-northeast-1:526636471122:secret:rds!cluster-9473744a-7f41-4d4e-88d7-427a8d09eadd-hOXGZz"
+        Export = {
+          Name = "${var.project_name}-aurora-secret-${var.environment}"
+        }
+      }
+      
+      # IAM関連
+      LambdaRole = {
+        Description = "Lambda Execution Role ARN"
+        Value = module.iam.lambda_processor_role_arn
+        Export = {
+          Name = "${var.project_name}-lambda-role-arn-${var.environment}"
+        }
+      }
+      StepFunctionsRole = {
+        Description = "Step Functions Execution Role ARN"
+        Value = module.iam.step_functions_execution_role_arn
+        Export = {
+          Name = "${var.project_name}-stepfunctions-role-arn-${var.environment}"
+        }
+      }
+    }
+  })
+  
+  tags = merge(local.common_tags, {
+    Name = "Terraform-Exports"
+    Type = "Integration"
+  })
+}

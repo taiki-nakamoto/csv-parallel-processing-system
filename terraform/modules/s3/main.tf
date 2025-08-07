@@ -50,6 +50,14 @@ resource "aws_s3_bucket_versioning" "processing" {
   }
 }
 
+# EventBridge通知設定（設計書準拠：02-03_EventBridgeルール基本設計）
+resource "aws_s3_bucket_notification" "processing_notification" {
+  bucket      = aws_s3_bucket.processing.id
+  eventbridge = true
+
+  depends_on = [aws_s3_bucket.processing]
+}
+
 # 統一ライフサイクルポリシー設定（設計書準拠）
 resource "aws_s3_bucket_lifecycle_configuration" "processing" {
   bucket = aws_s3_bucket.processing.id
@@ -58,12 +66,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "processing" {
   rule {
     id     = "UnifiedLifecycle"
     status = "Enabled"
-    
-    # Standard-IAへの移行（7日後）
-    transition {
-      days          = var.standard_ia_transition_days
-      storage_class = "STANDARD_IA"
-    }
     
     # オブジェクト削除（30日後）
     expiration {

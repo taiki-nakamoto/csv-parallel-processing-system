@@ -10,6 +10,7 @@
 - AWS SAM CLIがインストール済み（バージョン1.100以上）
 - Docker Desktopがインストール済み・起動済み
 - Node.js 22.x以上がインストール済み
+- PostgreSQLクライアント（psql）がインストール済み
 - AWS認証情報が設定済み（`aws configure`実行済み）
 - Terraformによるインフラ構築が完了済み
 
@@ -39,15 +40,32 @@ cd layers/business-logic/nodejs && npm install && cd ../../../
 ```
 
 ### 3. Aurora PostgreSQLスキーマの適用
+
+#### PostgreSQLクライアントのインストール（未インストールの場合）
 ```bash
-# Aurora PostgreSQLエンドポイントを環境変数から取得
-export AURORA_ENDPOINT=$(aws cloudformation describe-stacks \
-  --stack-name csv-parallel-processing-aurora-dev \
-  --query 'Stacks[0].Outputs[?OutputKey==`AuroraEndpoint`].OutputValue' \
-  --output text)
+# Ubuntu/Debian の場合
+sudo apt update && sudo apt install -y postgresql-client
+
+# CentOS/RHEL の場合
+sudo yum install -y postgresql
+
+# macOS の場合（Homebrew）
+brew install postgresql
+```
+
+#### スキーマ適用実行
+```bash
+# Terraformディレクトリに移動（エンドポイント取得のため）
+cd ../terraform
+
+# Aurora PostgreSQLエンドポイントをTerraform出力から取得
+export AURORA_ENDPOINT=$(terraform output -raw aurora_cluster_endpoint)
 
 # データベーススキーマを適用
 psql -h $AURORA_ENDPOINT -U postgres -d csv_processing -f ../scripts/aurora-schema.sql
+
+# samディレクトリに戻る
+cd ../sam
 ```
 
 成功時の確認：
@@ -213,13 +231,47 @@ aws logs describe-log-streams \
 
 ### Aurora接続エラー
 ```bash
+# Auroraクラスターの正しいSecret ARN取得
+SECRET_ARN=$(aws rds describe-db-clusters \
+  --db-cluster-identifier csv-parallel-processing-aurora-dev \
+  --query 'DBClusters[0].MasterUserSecret.SecretArn' \
+  --output text)
+
 # Secrets Managerからパスワード取得
 aws secretsmanager get-secret-value \
-  --secret-id csv-parallel-processing/aurora-credentials-dev
+  --secret-id $SECRET_ARN \
+  --query 'SecretString' \
+  --output text
 
 # VPCエンドポイント確認
 aws ec2 describe-vpc-endpoints \
   --filters "Name=service-name,Values=com.amazonaws.ap-northeast-1.secretsmanager"
+
+# セキュリティグループ確認
+aws ec2 describe-security-groups \
+  --group-ids $(terraform output -raw aurora_security_group_id)
+```
+
+#### Aurora接続が失敗する場合の対処法
+Auroraクラスターがプライベートサブネット内にある場合、外部から直接接続できません。以下の方法で対処してください：
+
+**方法1: EC2踏み台サーバー経由**
+```bash
+# EC2インスタンスを作成してpsqlコマンドを実行
+# （本番環境では踏み台サーバーを予め用意することを推奨）
+
+# 方法2: Lambda関数経由でスキーマ適用
+# スキーマ適用専用のLambda関数を作成して実行
+```
+
+**方法2: AWS RDS Data API使用**
+```bash
+# RDS Data APIでスキーマ適用（Aurora Serverless v2で利用可能）
+aws rds-data execute-statement \
+  --resource-arn $(terraform output -raw aurora_cluster_arn) \
+  --secret-arn $SECRET_ARN \
+  --database csvbatch \
+  --sql "$(cat ../scripts/aurora-schema.sql)"
 ```
 
 ## 環境削除手順

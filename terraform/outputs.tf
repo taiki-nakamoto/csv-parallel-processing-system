@@ -32,6 +32,11 @@ output "private_subnet_id" {
   value       = module.network.private_subnet_id
 }
 
+output "private_subnet_2_id" {
+  description = "Private subnet 2 ID"  
+  value       = module.network.private_subnet_2_id
+}
+
 # セキュリティグループ
 output "lambda_security_group_id" {
   description = "Lambda security group ID"
@@ -65,6 +70,22 @@ output "dynamodb_audit_table_arn" {
   value       = module.dynamodb.audit_logs_table_arn
 }
 
+# DynamoDB - 他のテーブル
+output "dynamodb_processing_metadata_table_name" {
+  description = "DynamoDB processing metadata table name"
+  value       = module.dynamodb.processing_metadata_table_name
+}
+
+output "dynamodb_batch_jobs_table_name" {
+  description = "DynamoDB batch jobs table name"
+  value       = module.dynamodb.batch_jobs_table_name
+}
+
+output "dynamodb_job_locks_table_name" {
+  description = "DynamoDB job locks table name"
+  value       = module.dynamodb.job_locks_table_name
+}
+
 # IAMロール
 output "lambda_execution_role_arn" {
   description = "Lambda execution role ARN"
@@ -87,6 +108,38 @@ output "log_group_lambda" {
   value       = module.cloudwatch.lambda_log_group_name
 }
 
+# Aurora関連
+output "aurora_cluster_endpoint" {
+  description = "Aurora cluster endpoint"
+  value       = module.aurora.cluster_endpoint
+}
+
+output "aurora_cluster_port" {
+  description = "Aurora cluster port"
+  value       = module.aurora.cluster_port
+}
+
+output "aurora_database_name" {
+  description = "Aurora database name"
+  value       = module.aurora.cluster_database_name
+}
+
+output "aurora_master_username" {
+  description = "Aurora master username"
+  value       = module.aurora.cluster_master_username
+  sensitive   = true
+}
+
+output "aurora_cluster_arn" {
+  description = "Aurora cluster ARN"
+  value       = module.aurora.cluster_arn
+}
+
+output "aurora_secret_arn" {
+  description = "Aurora master user secret ARN"
+  value       = "arn:aws:secretsmanager:ap-northeast-1:526636471122:secret:rds!cluster-9473744a-7f41-4d4e-88d7-427a8d09eadd-hOXGZz"
+}
+
 # Step Functions（後で実装）
 # output "step_functions_state_machine_arn" {
 #   description = "Step Functions state machine ARN"
@@ -99,3 +152,19 @@ output "log_group_lambda" {
 #   description = "CSV processor Lambda function ARN"
 #   value       = module.lambda.function_arn
 # }
+
+# EventBridge関連出力
+output "eventbridge_rule_arn" {
+  description = "EventBridgeルールのARN"
+  value       = module.eventbridge.eventbridge_rule_arn
+}
+
+output "eventbridge_rule_name" {
+  description = "EventBridgeルール名"
+  value       = module.eventbridge.eventbridge_rule_name
+}
+
+output "eventbridge_execution_role_arn" {
+  description = "EventBridge実行ロールのARN"
+  value       = module.iam.eventbridge_execution_role_arn
+}

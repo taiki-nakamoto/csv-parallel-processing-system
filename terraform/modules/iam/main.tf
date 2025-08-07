@@ -199,11 +199,16 @@ resource "aws_iam_role_policy" "step_functions_execution_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
+          "logs:DescribeLogStreams",
+          "logs:CreateLogDelivery",
+          "logs:GetLogDelivery",
+          "logs:UpdateLogDelivery",
+          "logs:DeleteLogDelivery",
+          "logs:ListLogDeliveries",
+          "logs:PutResourcePolicy",
+          "logs:DescribeResourcePolicies"
         ]
-        Resource = [
-          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/stepfunctions/*"
-        ]
+        Resource = "*"
       },
       {
         Sid = "DistributedMapAccess"
@@ -227,6 +232,53 @@ resource "aws_iam_role_policy" "step_functions_execution_policy" {
         ]
         Resource = [
           "arn:aws:s3:::csv-processing-*-${var.environment}/output/results/*"
+        ]
+      }
+    ]
+  })
+}
+
+# EventBridge実行ロール（設計書準拠：02-03_EventBridgeルール基本設計）
+resource "aws_iam_role" "eventbridge_execution_role" {
+  name = "${var.project_name}-eventbridge-execution-role-${var.environment}"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "events.amazonaws.com"
+        }
+      }
+    ]
+  })
+  
+  tags = merge(var.tags, {
+    Name = "${var.project_name}-eventbridge-execution-role-${var.environment}"
+    Purpose = "EventBridge execution role"
+    Service = "csv-processing-trigger"
+  })
+}
+
+# EventBridge実行ポリシー（Step Functions起動権限）
+resource "aws_iam_role_policy" "eventbridge_execution_policy" {
+  name = "${var.project_name}-eventbridge-execution-policy-${var.environment}"
+  role = aws_iam_role.eventbridge_execution_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "StepFunctionsStartExecution"
+        Effect = "Allow"
+        Action = [
+          "states:StartExecution"
+        ]
+        Resource = [
+          "arn:aws:states:${var.aws_region}:*:stateMachine:${var.project_name}-csv-processing-${var.environment}",
+          "arn:aws:states:${var.aws_region}:*:execution:${var.project_name}-csv-processing-${var.environment}:*"
         ]
       }
     ]

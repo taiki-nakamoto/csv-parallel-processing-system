@@ -99,9 +99,9 @@ variable "s3_lifecycle_retention_days" {
 }
 
 variable "s3_standard_ia_transition_days" {
-  description = "Days to transition to Standard IA"
+  description = "Days to transition to Standard IA (minimum 30 days required)"
   type        = number
-  default     = 7
+  default     = 30
 }
 
 # 監視設定

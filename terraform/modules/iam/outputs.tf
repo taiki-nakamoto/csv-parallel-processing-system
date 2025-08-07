@@ -19,3 +19,13 @@ output "step_functions_execution_role_name" {
   description = "Step Functions execution role name"
   value       = aws_iam_role.step_functions_execution_role.name
 }
+
+output "eventbridge_execution_role_arn" {
+  description = "EventBridge実行ロールのARN"
+  value       = aws_iam_role.eventbridge_execution_role.arn
+}
+
+output "eventbridge_execution_role_name" {
+  description = "EventBridge実行ロール名"
+  value       = aws_iam_role.eventbridge_execution_role.name
+}
