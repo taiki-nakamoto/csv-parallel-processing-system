@@ -16,6 +16,14 @@ build/
 # AWS
 .aws-sam/
 samconfig.toml
+# SAM installation and temporary files
+sam/sam-installation/
+sam/template-backup.yaml
+sam/template-minimal.yaml
+sam/template-updated.yaml
+# Package lock files (auto-generated)
+sam/package-lock.json
+sam/layers/*/nodejs/package-lock.json
 
 # Terraform
 *.tfstate
