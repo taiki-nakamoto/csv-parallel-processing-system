@@ -416,7 +416,7 @@ export class AuditLoggingService {
                     existingMetadata.eventType,
                     existingMetadata.status,
                     {
-                        ...existingMetadata.metadata,
+                        ...this.sanitizeMetadataForDynamoDB(existingMetadata.metadata),
                         logStatistics: currentLogStats,
                         lastLogRecorded: new Date().toISOString(),
                         lastLogLevel: logLevel,
@@ -502,5 +502,26 @@ export class AuditLoggingService {
                 error: error instanceof Error ? error.message : String(error)
             });
         }
+    }
+
+    /**
+     * DynamoDB保存用にメタデータを安全化（Date型をISO文字列に変換）
+     * @param metadata 原始メタデータ
+     * @returns 安全化されたメタデータ
+     */
+    private sanitizeMetadataForDynamoDB(metadata: Record<string, any>): Record<string, any> {
+        const sanitized: Record<string, any> = {};
+        
+        for (const [key, value] of Object.entries(metadata)) {
+            if (value instanceof Date) {
+                sanitized[key] = value.toISOString();
+            } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                sanitized[key] = this.sanitizeMetadataForDynamoDB(value);
+            } else {
+                sanitized[key] = value;
+            }
+        }
+        
+        return sanitized;
     }
 }

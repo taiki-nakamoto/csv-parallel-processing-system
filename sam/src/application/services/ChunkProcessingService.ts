@@ -10,6 +10,7 @@ import {
     ProcessingItemError,
     ChunkItem
 } from '../../controllers/ChunkProcessingController';
+import { ValidationError } from '../../domain/errors/DomainErrors';
 
 /**
  * チャンク処理サービス（アプリケーション層）
@@ -446,12 +447,6 @@ export class UserNotFoundError extends Error {
     }
 }
 
-export class ValidationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'ValidationError';
-    }
-}
 
 /**
  * ユーザーログデータの型定義

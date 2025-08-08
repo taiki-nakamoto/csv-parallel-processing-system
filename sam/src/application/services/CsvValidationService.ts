@@ -254,10 +254,11 @@ export class CsvValidationService implements ICsvValidationService {
     executionId: string
   ): Promise<void> {
     try {
-      const processingBucket = process.env.PROCESSING_BUCKET_NAME || `${params.bucketName}-processed`;
-      const processingKey = `validated/${executionId}/${params.objectKey.split('/').pop()}`;
+      // 同一バケット内のprocessingフォルダに移動（別バケット作成を回避）
+      const processingBucket = params.bucketName;
+      const processingKey = `processing/validated/${executionId}/${params.objectKey.split('/').pop()}`;
       
-      logger.info('Copying validated file to processing bucket', {
+      logger.info('Copying validated file to processing folder', {
         sourceBucket: params.bucketName,
         sourceKey: params.objectKey,
         targetBucket: processingBucket,

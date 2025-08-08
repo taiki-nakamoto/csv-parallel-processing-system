@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CopyObjectCommand } from '@aws-sdk/client-s3';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { IS3Repository } from '@domain/interfaces/IS3Repository';
 
@@ -293,6 +293,54 @@ export class S3CsvRepository implements IS3Repository {
       logger.error('Failed to list files from S3', {
         bucketName,
         prefix,
+        error
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * ファイルをコピー
+   * @param sourceBucket コピー元バケット名
+   * @param sourceKey コピー元オブジェクトキー
+   * @param destinationBucket コピー先バケット名
+   * @param destinationKey コピー先オブジェクトキー
+   */
+  async copyObject(
+    sourceBucket: string,
+    sourceKey: string,
+    destinationBucket: string,
+    destinationKey: string
+  ): Promise<void> {
+    logger.info('Copying object in S3', {
+      sourceBucket,
+      sourceKey,
+      destinationBucket,
+      destinationKey
+    });
+
+    try {
+      const command = new CopyObjectCommand({
+        CopySource: `${sourceBucket}/${sourceKey}`,
+        Bucket: destinationBucket,
+        Key: destinationKey
+      });
+
+      await this.s3Client.send(command);
+      
+      logger.info('Successfully copied object in S3', {
+        sourceBucket,
+        sourceKey,
+        destinationBucket,
+        destinationKey
+      });
+
+    } catch (error) {
+      logger.error('Failed to copy object in S3', {
+        sourceBucket,
+        sourceKey,
+        destinationBucket,
+        destinationKey,
         error
       });
       throw error;

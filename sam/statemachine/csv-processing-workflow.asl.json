@@ -19,8 +19,8 @@
       "Resource": "${CsvProcessorFunctionArn}",
       "Parameters": {
         "eventType": "csv-validation",
-        "bucketName.$": "$.bucketName",
-        "objectKey.$": "$.objectKey",
+        "bucketName.$": "$.bucket",
+        "objectKey.$": "$.key",
         "processingId.$": "$$.Execution.Name"
       },
       "TimeoutSeconds": 300,
@@ -93,7 +93,7 @@
       "Comment": "ファイルサイズに基づく処理戦略決定",
       "Choices": [
         {
-          "Variable": "$.fileMetadata.rowCount",
+          "Variable": "$.fileMetadata.totalRows",
           "NumericGreaterThan": 10000,
           "Next": "PrepareParallelProcessing"
         }
@@ -107,12 +107,14 @@
       "Resource": "${CsvProcessorFunctionArn}",
       "Parameters": {
         "eventType": "csv-chunk-processing",
-        "bucketName.$": "$.originalInput.bucketName", 
-        "objectKey.$": "$.originalInput.objectKey",
-        "processingId.$": "$.processingId",
+        "bucketName.$": "$.fileMetadata.bucket", 
+        "objectKey.$": "$.fileMetadata.key",
+        "processingId.$": "$$.Execution.Name",
+        "batchId.$": "$$.Execution.Name",
         "chunkIndex": 0,
         "totalChunks": 1,
-        "processingMode": "single"
+        "processingMode": "single",
+        "items": []
       },
       "TimeoutSeconds": 600,
       "Retry": [
@@ -138,10 +140,10 @@
       "Type": "Pass",
       "Comment": "並列処理用チャンク分割準備（分散マップ用）",
       "Parameters": {
-        "bucketName.$": "$.originalInput.bucketName",
-        "objectKey.$": "$.originalInput.objectKey",
-        "processingId.$": "$.processingId",
-        "totalRows.$": "$.fileMetadata.rowCount",
+        "bucketName.$": "$.fileMetadata.bucket",
+        "objectKey.$": "$.fileMetadata.key",
+        "processingId.$": "$$.Execution.Name",
+        "totalRows.$": "$.fileMetadata.totalRows",
         "chunkSize": 5000,
         "totalChunks": 10
       },
@@ -175,12 +177,13 @@
             "Resource": "${CsvProcessorFunctionArn}",
             "Parameters": {
               "eventType": "csv-chunk-processing",
-              "bucketName.$": "$$.Map.Item.Value.bucketName",
-              "objectKey.$": "$$.Map.Item.Value.objectKey",
-              "processingId.$": "$$.Map.Item.Value.processingId",
-              "chunkIndex.$": "$$.Map.Item.Value.chunkIndex",
-              "totalChunks.$": "$$.Map.Item.Value.totalChunks",
-              "chunkSize.$": "$$.Map.Item.Value.chunkSize",
+              "bucketName.$": "$.chunkConfig.bucketName",
+              "objectKey.$": "$.chunkConfig.objectKey",
+              "processingId.$": "$.chunkConfig.processingId",
+              "batchId.$": "$.chunkConfig.processingId",
+              "chunkIndex.$": "$$.Map.Item.Value",
+              "totalChunks.$": "$.chunkConfig.totalChunks",
+              "chunkSize.$": "$.chunkConfig.chunkSize",
               "processingMode": "distributed"
             },
             "TimeoutSeconds": 600,
@@ -208,8 +211,8 @@
             "Parameters": {
               "eventType": "batch-status-update", 
               "errorType": "chunk_processing_error",
-              "processingId.$": "$$.Map.Item.Value.processingId",
-              "chunkIndex.$": "$$.Map.Item.Value.chunkIndex",
+              "processingId.$": "$.chunkConfig.processingId",
+              "chunkIndex.$": "$$.Map.Item.Value",
               "error.$": "$.chunkError"
             },
             "End": true
@@ -238,7 +241,7 @@
       "Parameters": {
         "eventType": "csv-merge",
         "aggregationMode": "single",
-        "processingId.$": "$.processingId",
+        "processingId.$": "$$.Execution.Name",
         "chunkResults.$": "$.chunkResults",
         "originalMetadata.$": "$.fileMetadata"
       },
@@ -269,7 +272,7 @@
       "Parameters": {
         "eventType": "csv-merge",
         "aggregationMode": "distributed",
-        "processingId.$": "$.processingId",
+        "processingId.$": "$$.Execution.Name",
         "chunkResults.$": "$.chunkResults",
         "originalMetadata.$": "$.fileMetadata",
         "chunkConfig.$": "$.chunkConfig"
@@ -301,10 +304,10 @@
       "Parameters": {
         "eventType": "batch-status-update",
         "executionId.$": "$$.Execution.Name",
-        "processingId.$": "$.processingId",
+        "processingId.$": "$$.Execution.Name",
         "processingResult.$": "$.finalResult",
         "processingMetrics": {
-          "startTime.$": "$.processingStatus.timestamp",
+          "startTime.$": "$.originalInput.processingStatus.timestamp",
           "endTime.$": "$$.State.EnteredTime"
         }
       },
@@ -342,9 +345,9 @@
         "eventType": "batch-status-update",
         "errorType": "validation_error",
         "executionId.$": "$$.Execution.Name",
-        "processingId.$": "$.processingId",
-        "error.$": "$.validationError",
-        "originalInput.$": "$.originalInput"
+        "processingId.$": "$$.Execution.Name",
+        "error.$": "$.validationResult",
+        "originalInput.$": "$"
       },
       "TimeoutSeconds": 120,
       "ResultPath": "$.errorHandlingResult",
@@ -359,9 +362,9 @@
         "eventType": "batch-status-update",
         "errorType": "processing_error",
         "executionId.$": "$$.Execution.Name",
-        "processingId.$": "$.processingId",
+        "processingId.$": "$$.Execution.Name",
         "error.$": "$.processingError",
-        "originalInput.$": "$.originalInput"
+        "originalInput.$": "$"
       },
       "TimeoutSeconds": 120,
       "ResultPath": "$.errorHandlingResult",
@@ -376,7 +379,7 @@
         "eventType": "batch-status-update",
         "errorType": "aggregation_error",
         "executionId.$": "$$.Execution.Name",
-        "processingId.$": "$.processingId",
+        "processingId.$": "$$.Execution.Name",
         "error.$": "$.aggregationError",
         "chunkResults.$": "$.chunkResults"
       },

@@ -75,6 +75,14 @@ Resources:
   # Lambda関数（CSV処理統合関数）
   CsvProcessorFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
     Properties:
       FunctionName: !Sub '${ProjectName}-csv-processor-${Environment}'
       CodeUri: src/

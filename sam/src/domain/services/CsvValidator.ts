@@ -44,9 +44,7 @@ export class CsvValidator {
                 if (options.strictMode !== false) {
                     throw new ValidationError(
                         'File size validation failed',
-                        undefined,
-                        undefined,
-                        { fileSize: csvFile.getFileSize() }
+                        [{ field: 'fileSize', message: `File size ${csvFile.fileSize} bytes exceeds maximum allowed size` }]
                     );
                 }
             }
@@ -102,8 +100,8 @@ export class CsvValidator {
                 warnings,
                 statistics: {
                     ...statistics,
-                    fileSize: csvFile.getFileSize(),
-                    fileSizeMB: (csvFile.getFileSize() / (1024 * 1024)).toFixed(2),
+                    fileSize: csvFile.fileSize,
+                    fileSizeMB: (csvFile.fileSize / (1024 * 1024)).toFixed(2),
                     encoding: 'UTF-8',
                     processedAt: new Date().toISOString(),
                     processingTimeMs: processingTime
@@ -136,8 +134,8 @@ export class CsvValidator {
                 statistics: {
                     totalRows: 0,
                     validRows: 0,
-                    fileSize: csvFile.getFileSize(),
-                    fileSizeMB: (csvFile.getFileSize() / (1024 * 1024)).toFixed(2),
+                    fileSize: csvFile.fileSize,
+                    fileSizeMB: (csvFile.fileSize / (1024 * 1024)).toFixed(2),
                     encoding: 'UTF-8',
                     processedAt: new Date().toISOString(),
                     processingTimeMs: processingTime,
@@ -157,7 +155,7 @@ export class CsvValidator {
      * ファイルサイズ検証
      */
     private validateFileSize(csvFile: CsvFile): ValidationStepResult {
-        const fileSize = csvFile.getFileSize();
+        const fileSize = csvFile.fileSize;
         const maxSizeBytes = CsvValidator.MAX_FILE_SIZE_MB * 1024 * 1024;
 
         if (fileSize > maxSizeBytes) {
@@ -275,7 +273,8 @@ export class CsvValidator {
 
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
+            warnings: []
         };
     }
 
@@ -388,6 +387,7 @@ export class CsvValidator {
      */
     private validateUserId(value: string, lineNumber: number): ValidationStepResult {
         const errors: CsvValidationError[] = [];
+        const warnings: CsvValidationError[] = [];
 
         if (!value || value.trim() === '') {
             errors.push({
@@ -412,7 +412,8 @@ export class CsvValidator {
 
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
+            warnings
         };
     }
 
@@ -426,6 +427,7 @@ export class CsvValidator {
         options: { allowNegative?: boolean } = {}
     ): ValidationStepResult {
         const errors: CsvValidationError[] = [];
+        const warnings: CsvValidationError[] = [];
 
         if (!value || value.trim() === '') {
             errors.push({
@@ -465,7 +467,8 @@ export class CsvValidator {
 
         return {
             isValid: errors.length === 0,
-            errors
+            errors,
+            warnings
         };
     }
 

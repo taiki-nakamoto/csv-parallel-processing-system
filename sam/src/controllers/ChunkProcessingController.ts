@@ -54,7 +54,14 @@ export class ChunkProcessingController {
                 eventData: JSON.stringify(event, null, 2).substring(0, 1000) // 最初の1000文字のみ
             });
 
-            return ErrorHandler.handleError(error, event);
+            return ErrorHandler.handleLambdaError(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    executionId: event.processingId || event.batchId,
+                    eventType: 'csv-chunk-processing',
+                    isApiGateway: false
+                }
+            );
         }
     }
 
@@ -71,8 +78,9 @@ export class ChunkProcessingController {
             throw new Error('Missing or invalid required field: items (must be array)');
         }
 
-        if (event.items.length === 0) {
-            throw new Error('Items array cannot be empty');
+        // 単一処理モードの場合は空のitems配列を許可
+        if (event.items.length === 0 && event.processingMode !== 'single') {
+            throw new Error('Items array cannot be empty for distributed processing mode');
         }
 
         if (event.items.length > 25) {

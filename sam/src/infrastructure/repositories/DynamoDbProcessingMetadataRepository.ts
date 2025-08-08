@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, PutCommand, UpdateCommand, GetCommand, QueryCom
 import { Logger } from '@aws-lambda-powertools/logger';
 import { ProcessingMetadata } from '@domain/models/ProcessingMetadata';
 import { IProcessingMetadataRepository } from '@domain/interfaces/IProcessingMetadataRepository';
+import { DynamoDbSanitizer } from '@utils/DynamoDbSanitizer';
 
 const logger = new Logger({ serviceName: 'dynamodb-processing-metadata-repository' });
 
@@ -36,9 +37,18 @@ export class DynamoDbProcessingMetadataRepository implements IProcessingMetadata
     try {
       const item = metadata.toDynamoDbItem();
       
+      // DynamoDBマーシャリングエラー防止のため、Date型オブジェクトをサニタイズ
+      const sanitizedItem = DynamoDbSanitizer.sanitizeProcessingMetadata(item);
+      
+      logger.debug('ProcessingMetadata item sanitized for DynamoDB', {
+        executionId: metadata.executionId,
+        originalKeys: Object.keys(item),
+        sanitizedKeys: Object.keys(sanitizedItem)
+      });
+      
       const command = new PutCommand({
         TableName: this.tableName,
-        Item: item
+        Item: sanitizedItem
       });
 
       await this.dynamoClient.send(command);

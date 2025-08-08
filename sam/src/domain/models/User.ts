@@ -152,8 +152,8 @@ export class User {
       email: this.email,
       username: this.username,
       status: this.status,
-      created_at: this.createdAt,
-      updated_at: this.updatedAt
+      created_at: this.createdAt.toISOString(),
+      updated_at: this.updatedAt.toISOString()
     };
   }
 
@@ -257,4 +257,195 @@ export enum UserStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
   DELETED = 'DELETED'
+}
+
+/**
+ * ユーザー統計情報クラス
+ * 設計書03-14データモデル詳細設計.mdに準拠
+ */
+export class UserStatistics {
+  public readonly userId: string;
+  public readonly loginCount: number;
+  public readonly postCount: number;
+  public readonly lastLoginDate: Date | undefined;
+  public readonly lastPostDate: Date | undefined;
+  public readonly lastUpdated: Date;
+  public readonly lastExecutionId: string | undefined;
+
+  constructor(
+    userId: string,
+    loginCount: number = 0,
+    postCount: number = 0,
+    lastLoginDate?: Date,
+    lastPostDate?: Date,
+    lastUpdated?: Date,
+    lastExecutionId?: string
+  ) {
+    // バリデーション
+    this.validateUserId(userId);
+    this.validateCounts(loginCount, postCount);
+
+    this.userId = userId;
+    this.loginCount = loginCount;
+    this.postCount = postCount;
+    this.lastLoginDate = lastLoginDate;
+    this.lastPostDate = lastPostDate;
+    this.lastUpdated = lastUpdated || new Date();
+    this.lastExecutionId = lastExecutionId;
+
+    logger.debug('UserStatistics model created', {
+      userId: this.userId,
+      loginCount: this.loginCount,
+      postCount: this.postCount
+    });
+  }
+
+  /**
+   * データベースレコードからUserStatisticsモデルを復元
+   * @param dbRecord データベースレコード
+   * @returns UserStatistics instance
+   */
+  static fromDatabaseRecord(dbRecord: any): UserStatistics {
+    return new UserStatistics(
+      dbRecord.user_id,
+      dbRecord.login_count || 0,
+      dbRecord.post_count || 0,
+      dbRecord.last_login_date ? new Date(dbRecord.last_login_date) : undefined,
+      dbRecord.last_post_date ? new Date(dbRecord.last_post_date) : undefined,
+      new Date(dbRecord.last_updated),
+      dbRecord.last_execution_id
+    );
+  }
+
+  /**
+   * データベース保存用の形式に変換
+   * @returns データベース保存用オブジェクト
+   */
+  public toDatabaseRecord(): any {
+    return {
+      user_id: this.userId,
+      login_count: this.loginCount,
+      post_count: this.postCount,
+      last_login_date: this.lastLoginDate?.toISOString(),
+      last_post_date: this.lastPostDate?.toISOString(),
+      last_updated: this.lastUpdated.toISOString(),
+      last_execution_id: this.lastExecutionId
+    };
+  }
+
+  /**
+   * 統計情報を更新（新しいインスタンスを返す）
+   * @param updates 更新する情報
+   * @returns 新しいUserStatisticsインスタンス
+   */
+  public update(updates: {
+    loginCount?: number;
+    postCount?: number;
+    lastLoginDate?: Date;
+    lastPostDate?: Date;
+    lastExecutionId?: string;
+  }): UserStatistics {
+    return new UserStatistics(
+      this.userId,
+      updates.loginCount !== undefined ? updates.loginCount : this.loginCount,
+      updates.postCount !== undefined ? updates.postCount : this.postCount,
+      updates.lastLoginDate || this.lastLoginDate,
+      updates.lastPostDate || this.lastPostDate,
+      new Date(), // 更新時刻を現在時刻に設定
+      updates.lastExecutionId || this.lastExecutionId
+    );
+  }
+
+  /**
+   * 統計を増分更新（新しいインスタンスを返す）
+   * @param loginIncrement ログイン回数の増分
+   * @param postIncrement 投稿回数の増分
+   * @param executionId 実行ID
+   * @returns 新しいUserStatisticsインスタンス
+   */
+  public increment(
+    loginIncrement: number = 0,
+    postIncrement: number = 0,
+    executionId?: string
+  ): UserStatistics {
+    const newLoginCount = this.loginCount + loginIncrement;
+    const newPostCount = this.postCount + postIncrement;
+    const now = new Date();
+
+    return new UserStatistics(
+      this.userId,
+      newLoginCount,
+      newPostCount,
+      loginIncrement > 0 ? now : this.lastLoginDate,
+      postIncrement > 0 ? now : this.lastPostDate,
+      now,
+      executionId || this.lastExecutionId
+    );
+  }
+
+  /**
+   * API レスポンス用の形式に変換
+   * @returns API レスポンス用オブジェクト
+   */
+  public toApiResponse(): any {
+    return {
+      userId: this.userId,
+      loginCount: this.loginCount,
+      postCount: this.postCount,
+      lastLoginDate: this.lastLoginDate?.toISOString(),
+      lastPostDate: this.lastPostDate?.toISOString(),
+      lastUpdated: this.lastUpdated.toISOString(),
+      lastExecutionId: this.lastExecutionId
+    };
+  }
+
+  /**
+   * ユーザーIDのバリデーション
+   * @param userId ユーザーID
+   */
+  private validateUserId(userId: string): void {
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('User ID is required and must be a string');
+    }
+
+    if (userId.length < 1 || userId.length > 10) {
+      throw new Error('User ID must be between 1 and 10 characters');
+    }
+  }
+
+  /**
+   * カウント値のバリデーション
+   * @param loginCount ログイン回数
+   * @param postCount 投稿回数
+   */
+  private validateCounts(loginCount: number, postCount: number): void {
+    if (loginCount < 0) {
+      throw new Error('Login count must be non-negative');
+    }
+    
+    if (postCount < 0) {
+      throw new Error('Post count must be non-negative');
+    }
+
+    if (!Number.isInteger(loginCount) || !Number.isInteger(postCount)) {
+      throw new Error('Login count and post count must be integers');
+    }
+  }
+
+  /**
+   * オブジェクトの等価性チェック
+   * @param other 比較対象のユーザー統計
+   * @returns 等価フラグ
+   */
+  public equals(other: UserStatistics): boolean {
+    return this.userId === other.userId;
+  }
+
+  /**
+   * 文字列表現
+   * @returns 文字列表現
+   */
+  public toString(): string {
+    return `UserStatistics(${this.userId}, login: ${this.loginCount}, post: ${this.postCount})`;
+  }
 }

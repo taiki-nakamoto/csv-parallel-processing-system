@@ -64,10 +64,10 @@ export const handler = async (
     const eventType = getEventType(event);
     
     logger.info('Processing event', { eventType, executionId });
-    metrics.addMetric('EventProcessed', 'Count', 1, { eventType });
+    metrics.addMetric('EventProcessed', 'Count', 1);
     
     // 監査ログの保存（処理開始）
-    await logAuditEvent(container, executionId, eventType, 'PROCESSING_STARTED', event);
+    await logAuditEvent(container, executionId, eventType, 'INFO', event);
     
     let result: any;
     
@@ -106,7 +106,7 @@ export const handler = async (
     }
     
     // 監査ログの保存（処理完了）
-    await logAuditEvent(container, executionId, eventType, 'PROCESSING_COMPLETED', { result });
+    await logAuditEvent(container, executionId, eventType, 'INFO', { result });
     
     logger.info('Event processing completed successfully', {
       eventType,
@@ -114,29 +114,28 @@ export const handler = async (
       resultType: typeof result
     });
     
-    metrics.addMetric('EventProcessedSuccessfully', 'Count', 1, { eventType });
+    metrics.addMetric('EventProcessedSuccessfully', 'Count', 1);
     
     return result;
     
   } catch (error) {
+    const errorObj = error as Error;
     logger.error('Error processing event', {
-      error: error.message,
-      stack: error.stack,
+      error: errorObj.message,
+      stack: errorObj.stack,
       executionId,
       eventType: event.eventType || 'unknown'
     });
     
-    metrics.addMetric('EventProcessingError', 'Count', 1, {
-      eventType: event.eventType || 'unknown',
-      errorType: error.constructor.name
-    });
+    metrics.addMetric('EventProcessingError', 'Count', 1);
     
     // エラー監査ログの保存
     try {
       const container = DIContainer.getInstance();
-      await logAuditEvent(container, executionId, event.eventType || 'unknown', 'PROCESSING_ERROR', {
-        error: error.message,
-        stack: error.stack
+      const errorObj = error as Error;
+      await logAuditEvent(container, executionId, event.eventType || 'unknown', 'ERROR', {
+        error: errorObj.message,
+        stack: errorObj.stack
       });
     } catch (auditError) {
       logger.error('Failed to save audit log for error', { auditError });
@@ -152,7 +151,7 @@ export const handler = async (
         },
         body: JSON.stringify({
           error: 'Internal Server Error',
-          message: error.message,
+          message: (error as Error).message,
           executionId
         })
       };
@@ -414,10 +413,54 @@ async function handleBatchStatusUpdate(
   event: any,
   executionId: string
 ): Promise<any> {
-  logger.info('Handling batch status update', { executionId });
+  logger.info('Handling batch status update', { 
+    executionId,
+    errorType: event.errorType,
+    processingId: event.processingId
+  });
   
-  // 今後実装
-  throw new Error('Batch status update processing not yet implemented');
+  try {
+    // エラー情報をログに記録（監査ログサービスを使用）
+    const auditLoggingService = container.getAuditLoggingService();
+    const controller = new AuditLoggingController(auditLoggingService);
+    
+    await controller.recordAuditLog({
+      executionId: event.executionId || executionId,
+      eventType: event.errorType || 'BATCH_STATUS_UPDATE',
+      logLevel: 'ERROR',
+      functionName: 'csv-processor',
+      message: `Batch processing error: ${event.errorType}`,
+      metadata: {
+        processingId: event.processingId,
+        errorType: event.errorType,
+        error: event.error,
+        chunkIndex: event.chunkIndex,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+    // 処理結果を返す
+    return {
+      success: true,
+      processingId: event.processingId || executionId,
+      errorType: event.errorType,
+      message: 'Error status recorded in audit log',
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    logger.error('Failed to handle batch status update', {
+      executionId,
+      error: (error as Error).message
+    });
+    
+    return {
+      success: false,
+      processingId: event.processingId || executionId,
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    };
+  }
 }
 
 /**

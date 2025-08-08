@@ -26,7 +26,8 @@
       "@controllers/*": ["controllers/*"],
       "@application/*": ["application/*"],
       "@domain/*": ["domain/*"],
-      "@infrastructure/*": ["infrastructure/*"]
+      "@infrastructure/*": ["infrastructure/*"],
+      "@utils/*": ["utils/*"]
     }
   },
   "include": [

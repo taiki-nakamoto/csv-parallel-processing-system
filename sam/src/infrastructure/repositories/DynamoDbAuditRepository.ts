@@ -3,6 +3,7 @@ import { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand, BatchWrit
 import { Logger } from '@aws-lambda-powertools/logger';
 import { AuditLog } from '@domain/models/AuditLog';
 import { IAuditLogRepository } from '@domain/interfaces/IAuditLogRepository';
+import { DynamoDbSanitizer } from '@utils/DynamoDbSanitizer';
 
 const logger = new Logger({ serviceName: 'dynamodb-audit-repository' });
 
@@ -37,9 +38,17 @@ export class DynamoDbAuditRepository implements IAuditLogRepository {
     try {
       const item = auditLog.toDynamoDbItem();
       
+      // DynamoDBマーシャリングエラー防止のため、Date型オブジェクトをサニタイズ
+      const sanitizedItem = DynamoDbSanitizer.sanitizeDynamoDbItem(item);
+      
+      logger.debug('AuditLog item sanitized for DynamoDB', {
+        originalKeys: Object.keys(item),
+        sanitizedKeys: Object.keys(sanitizedItem)
+      });
+      
       const command = new PutCommand({
         TableName: this.tableName,
-        Item: item
+        Item: sanitizedItem
       });
 
       await this.dynamoClient.send(command);
@@ -258,11 +267,16 @@ export class DynamoDbAuditRepository implements IAuditLogRepository {
       }
 
       for (const batch of batches) {
-        const putRequests = batch.map(auditLog => ({
-          PutRequest: {
-            Item: auditLog.toDynamoDbItem()
-          }
-        }));
+        const putRequests = batch.map(auditLog => {
+          const item = auditLog.toDynamoDbItem();
+          const sanitizedItem = DynamoDbSanitizer.sanitizeDynamoDbItem(item);
+          
+          return {
+            PutRequest: {
+              Item: sanitizedItem
+            }
+          };
+        });
 
         const command = new BatchWriteCommand({
           RequestItems: {

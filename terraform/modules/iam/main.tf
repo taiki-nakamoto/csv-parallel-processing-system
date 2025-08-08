@@ -188,7 +188,7 @@ resource "aws_iam_role_policy" "step_functions_execution_policy" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:${var.aws_region}:*:function:csv-processor-${var.environment}"
+          "arn:aws:lambda:${var.aws_region}:*:function:${var.project_name}-csv-processor-${var.environment}"
         ]
       },
       {
@@ -219,8 +219,8 @@ resource "aws_iam_role_policy" "step_functions_execution_policy" {
           "states:StopExecution"
         ]
         Resource = [
-          "arn:aws:states:${var.aws_region}:*:stateMachine:csv-processing-workflow-${var.environment}",
-          "arn:aws:states:${var.aws_region}:*:execution:csv-processing-workflow-${var.environment}:*"
+          "arn:aws:states:${var.aws_region}:*:stateMachine:${var.project_name}-csv-processing-${var.environment}",
+          "arn:aws:states:${var.aws_region}:*:execution:${var.project_name}-csv-processing-${var.environment}:*"
         ]
       },
       {

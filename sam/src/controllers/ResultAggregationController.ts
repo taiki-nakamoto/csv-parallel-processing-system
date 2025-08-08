@@ -54,7 +54,14 @@ export class ResultAggregationController {
                 eventData: JSON.stringify(event, null, 2).substring(0, 1000)
             });
 
-            return ErrorHandler.handleError(error, event);
+            return ErrorHandler.handleLambdaError(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    executionId: event.processingId || event.executionId,
+                    eventType: 'csv-merge',
+                    isApiGateway: false
+                }
+            );
         }
     }
 
