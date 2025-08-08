@@ -1,0 +1,192 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CSV並列処理システム - Lambda Functions & Step Functions (段階デプロイ対応)
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Environment name
+  ProjectName:
+    Type: String
+    Default: csv-parallel-processing
+    Description: Project name for resource naming
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 300
+    MemorySize: 512
+    Environment:
+      Variables:
+        NODE_ENV: !Ref Environment
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+        POWERTOOLS_SERVICE_NAME: !Sub '${ProjectName}-${Environment}'
+        POWERTOOLS_LOGGER_LOG_LEVEL: INFO
+        POWERTOOLS_LOGGER_SAMPLE_RATE: '1'
+        POWERTOOLS_TRACE_DISABLED: 'false'
+        POWERTOOLS_TRACER_CAPTURE_LAMBDA_HANDLER: 'true'
+        POWERTOOLS_TRACER_CAPTURE_ERROR: 'true'
+        POWERTOOLS_TRACER_CAPTURE_RESPONSE: 'true'
+    # VpcConfig設定は現在コメントアウト（Terraform Export準備まで）
+    # VpcConfig:
+    #   SecurityGroupIds:
+    #     - !ImportValue
+    #       Fn::Sub: "${ProjectName}-lambda-sg-${Environment}"
+    #   SubnetIds:
+    #     - !ImportValue
+    #       Fn::Sub: "${ProjectName}-private-subnet-${Environment}"
+    #     - !ImportValue
+    #       Fn::Sub: "${ProjectName}-private-subnet-2-${Environment}"
+
+Resources:
+  # Lambda Layer for common dependencies
+  # 共通ユーティリティLayer
+  CommonUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-common-utils-layer-${Environment}'
+      ContentUri: layers/common-utils/
+      CompatibleRuntimes:
+        - nodejs22.x
+      RetentionPolicy: Delete
+
+  # AWS SDK WrapperLayer  
+  AwsSdkWrapperLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-aws-sdk-wrapper-layer-${Environment}'
+      ContentUri: layers/aws-sdk-wrapper/
+      CompatibleRuntimes:
+        - nodejs22.x
+      RetentionPolicy: Delete
+
+  # Business Logic Layer
+  BusinessLogicLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${ProjectName}-business-logic-layer-${Environment}'
+      ContentUri: layers/business-logic/
+      CompatibleRuntimes:
+        - nodejs22.x  
+      RetentionPolicy: Delete
+
+  # Lambda関数（CSV処理統合関数）
+  CsvProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - handler.ts
+    Properties:
+      FunctionName: !Sub '${ProjectName}-csv-processor-${Environment}'
+      CodeUri: src/
+      Handler: handler.handler
+      Runtime: nodejs22.x
+      Timeout: 900
+      MemorySize: 1024
+      # ReservedConcurrentExecutions: アカウント制限により削除
+      Environment:
+        Variables:
+          # 基本設定
+          PROJECT_NAME: !Ref ProjectName
+          ENVIRONMENT: !Ref Environment
+          REGION: !Ref 'AWS::Region'
+          SYSTEM_VERSION: "1.0.0"
+          
+          # 処理設定
+          CHUNK_SIZE: "25"
+          MAX_PARALLEL_WORKERS: "5"
+          VALIDATION_TIMEOUT_SECONDS: "30"
+          MAX_RETRY_ATTEMPTS: "3"
+          
+          # 外部リソース設定（Terraformから取得した値を使用）
+          # S3設定
+          S3_BUCKET_NAME: "csv-processing-526636471122-dev"
+          
+          # DynamoDB設定
+          AUDIT_LOG_TABLE_NAME: "csv-parallel-processing-audit-logs-dev"
+          BATCH_JOBS_TABLE_NAME: "csv-parallel-processing-batch-jobs-dev"
+          JOB_LOCKS_TABLE_NAME: "csv-parallel-processing-job-locks-dev"
+          PROCESSING_METADATA_TABLE_NAME: "csv-parallel-processing-processing-metadata-dev"
+          
+          # Aurora PostgreSQL設定
+          AURORA_ENDPOINT: "csv-parallel-processing-aurora-dev.cluster-cbuqsk2gi5o4.ap-northeast-1.rds.amazonaws.com"
+          AURORA_DATABASE_NAME: "csvbatch"
+          AURORA_SECRET_ARN: "arn:aws:secretsmanager:ap-northeast-1:526636471122:secret:rds!cluster-9473744a-7f41-4d4e-88d7-427a8d09eadd-hOXGZz"
+      
+      Layers:
+        - !Ref CommonUtilsLayer
+        - !Ref AwsSdkWrapperLayer  
+        - !Ref BusinessLogicLayer
+      
+      # VPC設定（Terraformから取得した値を使用）
+      VpcConfig:
+        SecurityGroupIds:
+          - "sg-06c634d551276a4ea"  # Lambda Security Group
+        SubnetIds:
+          - "subnet-08a0f6d12ec88f57b"  # Private Subnet 1
+          - "subnet-0b5bc36627c1f6dbb"  # Private Subnet 2
+      
+      # IAMロール設定（Terraformから取得した値を使用）
+      Role: "arn:aws:iam::526636471122:role/csv-lambda-processor-role-dev"
+
+  # Step Functions State Machine（統合Lambda関数対応）
+  CsvProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub '${ProjectName}-csv-processing-${Environment}'
+      DefinitionUri: statemachine/csv-processing-workflow.asl.json
+      DefinitionSubstitutions:
+        CsvProcessorFunctionArn: !GetAtt CsvProcessorFunction.Arn
+      Role: "arn:aws:iam::526636471122:role/csv-stepfunctions-execution-role-dev"
+      # Terraformで既に権限が設定されているため、追加ポリシーは不要
+      Logging:
+        Level: ALL
+        IncludeExecutionData: true
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StepFunctionsLogGroup.Arn
+
+  # Step Functions用のCloudWatch Logsグループ
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/stepfunctions/${ProjectName}-csv-processing-${Environment}'
+      RetentionInDays: 7
+
+Outputs:
+  CsvProcessorFunctionArn:
+    Description: CSV処理Lambda関数のARN
+    Value: !GetAtt CsvProcessorFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-csv-processor-arn-${Environment}'
+
+  CsvProcessingStateMachineArn:
+    Description: CSV処理Step Functions StateMachineのARN
+    Value: !Ref CsvProcessingStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-csv-processing-statemachine-arn-${Environment}'
+
+  CommonUtilsLayerArn:
+    Description: 共通ユーティリティLayerのARN
+    Value: !Ref CommonUtilsLayer
+    Export:
+      Name: !Sub '${ProjectName}-common-utils-layer-arn-${Environment}'
+
+  AwsSdkWrapperLayerArn:
+    Description: AWS SDK WrapperLayerのARN  
+    Value: !Ref AwsSdkWrapperLayer
+    Export:
+      Name: !Sub '${ProjectName}-aws-sdk-wrapper-layer-arn-${Environment}'
+
+  BusinessLogicLayerArn:
+    Description: ビジネスロジックLayerのARN
+    Value: !Ref BusinessLogicLayer
+    Export:
+      Name: !Sub '${ProjectName}-business-logic-layer-arn-${Environment}'

@@ -1,0 +1,412 @@
+{
+  "Comment": "CSV並列処理システム - 統合Lambda + 分散マップ対応メインワークフロー",
+  "StartAt": "StartProcessing",
+  "States": {
+    "StartProcessing": {
+      "Type": "Pass",
+      "Comment": "処理開始",
+      "Result": {
+        "status": "started",
+        "timestamp": "$$.State.EnteredTime"
+      },
+      "ResultPath": "$.processingStatus",
+      "Next": "CsvValidation"
+    },
+    
+    "CsvValidation": {
+      "Type": "Task",
+      "Comment": "CSVファイルの構造・データ検証（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "csv-validation",
+        "bucketName.$": "$.bucket",
+        "objectKey.$": "$.key",
+        "processingId.$": "$$.Execution.Name"
+      },
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.validationError",
+          "Next": "ValidationErrorHandling"
+        }
+      ],
+      "ResultPath": "$.validationResult",
+      "Next": "CheckValidationResult"
+    },
+
+    "CheckValidationResult": {
+      "Type": "Choice",
+      "Comment": "バリデーション結果チェック",
+      "Choices": [
+        {
+          "Variable": "$.validationResult.status",
+          "StringEquals": "VALID",
+          "Next": "ParseValidationResult"
+        }
+      ],
+      "Default": "ValidationErrorHandling"
+    },
+
+    "ParseValidationResult": {
+      "Type": "Pass",
+      "Comment": "バリデーション結果の解析",
+      "Parameters": {
+        "isValid.$": "$.validationResult.status",
+        "fileMetadata.$": "$.validationResult.validationResult.metadata",
+        "errors.$": "$.validationResult.validationResult.errors",
+        "originalInput.$": "$",
+        "processingId.$": "$.validationResult.processingId"
+      },
+      "Next": "IsValidCsv"
+    },
+
+    "IsValidCsv": {
+      "Type": "Choice",
+      "Comment": "CSVファイルが有効かチェック",
+      "Choices": [
+        {
+          "Variable": "$.isValid",
+          "StringEquals": "VALID",
+          "Next": "DetermineProcessingStrategy"
+        }
+      ],
+      "Default": "ValidationErrorHandling"
+    },
+
+    "DetermineProcessingStrategy": {
+      "Type": "Choice",
+      "Comment": "ファイルサイズに基づく処理戦略決定",
+      "Choices": [
+        {
+          "Variable": "$.fileMetadata.totalRows",
+          "NumericGreaterThan": 10000,
+          "Next": "PrepareParallelProcessing"
+        }
+      ],
+      "Default": "SingleChunkProcessing"
+    },
+
+    "SingleChunkProcessing": {
+      "Type": "Task",
+      "Comment": "小さなファイルの単一処理（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "csv-chunk-processing",
+        "bucketName.$": "$.fileMetadata.bucket", 
+        "objectKey.$": "$.fileMetadata.key",
+        "processingId.$": "$$.Execution.Name",
+        "batchId.$": "$$.Execution.Name",
+        "chunkIndex": 0,
+        "totalChunks": 1,
+        "processingMode": "single",
+        "items": []
+      },
+      "TimeoutSeconds": 600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.processingError",
+          "Next": "ProcessingErrorHandling"
+        }
+      ],
+      "ResultPath": "$.chunkResults",
+      "Next": "SingleResultAggregation"
+    },
+
+    "PrepareParallelProcessing": {
+      "Type": "Pass",
+      "Comment": "並列処理用チャンク分割準備（分散マップ用）",
+      "Parameters": {
+        "bucketName.$": "$.fileMetadata.bucket",
+        "objectKey.$": "$.fileMetadata.key",
+        "processingId.$": "$$.Execution.Name",
+        "totalRows.$": "$.fileMetadata.totalRows",
+        "chunkSize": 5000,
+        "totalChunks": 10
+      },
+      "ResultPath": "$.chunkConfig",
+      "Next": "GenerateChunkItems"
+    },
+
+    "GenerateChunkItems": {
+      "Type": "Pass",
+      "Comment": "分散マップ用のチャンクアイテム配列を生成",
+      "Parameters": {
+        "items": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      },
+      "ResultPath": "$.chunkItems",
+      "Next": "DistributedMapProcessing"
+    },
+
+    "DistributedMapProcessing": {
+      "Type": "Map",
+      "Comment": "CSVチャンクの分散並列処理（Distributed Map使用）",
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "ProcessChunkDistributed",
+        "States": {
+          "ProcessChunkDistributed": {
+            "Type": "Task",
+            "Comment": "統合Lambda関数でチャンク処理",
+            "Resource": "${CsvProcessorFunctionArn}",
+            "Parameters": {
+              "eventType": "csv-chunk-processing",
+              "bucketName.$": "$.chunkConfig.bucketName",
+              "objectKey.$": "$.chunkConfig.objectKey",
+              "processingId.$": "$.chunkConfig.processingId",
+              "batchId.$": "$.chunkConfig.processingId",
+              "chunkIndex.$": "$$.Map.Item.Value",
+              "totalChunks.$": "$.chunkConfig.totalChunks",
+              "chunkSize.$": "$.chunkConfig.chunkSize",
+              "processingMode": "distributed"
+            },
+            "TimeoutSeconds": 600,
+            "Retry": [
+              {
+                "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+                "IntervalSeconds": 3,
+                "MaxAttempts": 2,
+                "BackoffRate": 2.0
+              }
+            ],
+            "Catch": [
+              {
+                "ErrorEquals": ["States.ALL"],
+                "ResultPath": "$.chunkError",
+                "Next": "ChunkErrorHandling"
+              }
+            ],
+            "End": true
+          },
+          "ChunkErrorHandling": {
+            "Type": "Task",
+            "Comment": "チャンクエラー処理（統合Lambda使用）",
+            "Resource": "${CsvProcessorFunctionArn}",
+            "Parameters": {
+              "eventType": "batch-status-update", 
+              "errorType": "chunk_processing_error",
+              "processingId.$": "$.chunkConfig.processingId",
+              "chunkIndex.$": "$$.Map.Item.Value",
+              "error.$": "$.chunkError"
+            },
+            "End": true
+          }
+        }
+      },
+      "ItemsPath": "$.chunkItems.items",
+      "MaxConcurrency": 100,
+      "ToleratedFailureCount": 5,
+      "ToleratedFailurePercentage": 10,
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.distributedMapError",
+          "Next": "ProcessingErrorHandling"
+        }
+      ],
+      "ResultPath": "$.chunkResults",
+      "Next": "ParallelResultAggregation"
+    },
+
+    "SingleResultAggregation": {
+      "Type": "Task",
+      "Comment": "単一処理結果の集約（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "csv-merge",
+        "aggregationMode": "single",
+        "processingId.$": "$$.Execution.Name",
+        "chunkResults.$": "$.chunkResults",
+        "originalMetadata.$": "$.fileMetadata"
+      },
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.aggregationError",
+          "Next": "AggregationErrorHandling"
+        }
+      ],
+      "ResultPath": "$.finalResult",
+      "Next": "AuditLogging"
+    },
+
+    "ParallelResultAggregation": {
+      "Type": "Task",
+      "Comment": "並列処理結果の集約（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "csv-merge",
+        "aggregationMode": "distributed",
+        "processingId.$": "$$.Execution.Name",
+        "chunkResults.$": "$.chunkResults",
+        "originalMetadata.$": "$.fileMetadata",
+        "chunkConfig.$": "$.chunkConfig"
+      },
+      "TimeoutSeconds": 600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.aggregationError",
+          "Next": "AggregationErrorHandling"
+        }
+      ],
+      "ResultPath": "$.finalResult",
+      "Next": "AuditLogging"
+    },
+
+    "AuditLogging": {
+      "Type": "Task",
+      "Comment": "監査ログ記録（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "batch-status-update",
+        "executionId.$": "$$.Execution.Name",
+        "processingId.$": "$$.Execution.Name",
+        "processingResult.$": "$.finalResult",
+        "processingMetrics": {
+          "startTime.$": "$.originalInput.processingStatus.timestamp",
+          "endTime.$": "$$.State.EnteredTime"
+        }
+      },
+      "TimeoutSeconds": 120,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "ResultPath": "$.auditResult",
+      "Next": "ProcessingComplete"
+    },
+
+    "ProcessingComplete": {
+      "Type": "Pass",
+      "Comment": "処理完了",
+      "Parameters": {
+        "status": "completed",
+        "executionId.$": "$$.Execution.Name",
+        "processingResult.$": "$.finalResult",
+        "auditResult.$": "$.auditResult",
+        "completedAt.$": "$$.State.EnteredTime"
+      },
+      "End": true
+    },
+
+    "ValidationErrorHandling": {
+      "Type": "Task",
+      "Comment": "バリデーションエラー処理（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "batch-status-update",
+        "errorType": "validation_error",
+        "executionId.$": "$$.Execution.Name",
+        "processingId.$": "$$.Execution.Name",
+        "error.$": "$.validationResult",
+        "originalInput.$": "$"
+      },
+      "TimeoutSeconds": 120,
+      "ResultPath": "$.errorHandlingResult",
+      "Next": "ValidationFailure"
+    },
+
+    "ProcessingErrorHandling": {
+      "Type": "Task",
+      "Comment": "処理エラーハンドリング（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "batch-status-update",
+        "errorType": "processing_error",
+        "executionId.$": "$$.Execution.Name",
+        "processingId.$": "$$.Execution.Name",
+        "error.$": "$.processingError",
+        "originalInput.$": "$"
+      },
+      "TimeoutSeconds": 120,
+      "ResultPath": "$.errorHandlingResult",
+      "Next": "ProcessingFailure"
+    },
+
+    "AggregationErrorHandling": {
+      "Type": "Task",
+      "Comment": "集約エラーハンドリング（統合Lambda使用）",
+      "Resource": "${CsvProcessorFunctionArn}",
+      "Parameters": {
+        "eventType": "batch-status-update",
+        "errorType": "aggregation_error",
+        "executionId.$": "$$.Execution.Name",
+        "processingId.$": "$$.Execution.Name",
+        "error.$": "$.aggregationError",
+        "chunkResults.$": "$.chunkResults"
+      },
+      "TimeoutSeconds": 120,
+      "ResultPath": "$.errorHandlingResult",
+      "Next": "AggregationFailure"
+    },
+
+    "ValidationFailure": {
+      "Type": "Fail",
+      "Comment": "バリデーション失敗",
+      "Cause": "CSV validation failed",
+      "Error": "ValidationError"
+    },
+
+    "ProcessingFailure": {
+      "Type": "Fail",
+      "Comment": "処理失敗",
+      "Cause": "CSV processing failed",
+      "Error": "ProcessingError"
+    },
+
+    "AggregationFailure": {
+      "Type": "Fail",
+      "Comment": "集約失敗",
+      "Cause": "Result aggregation failed",
+      "Error": "AggregationError"
+    }
+  }
+}
